@@ -10,7 +10,8 @@
 #include <condition_variable>
 
 #ifdef _MSC_VER
-#pragma comment (lib, "./CTP/thosttraderapi_se.lib")
+#pragma comment (lib, "./CTP/soptthosttraderapi_se.lib")
+#pragma warning(disable : 4996)
 #endif
 
 class semaphore
@@ -560,7 +561,7 @@ int main(int argc, char* argv[])
 	strncpy(QryInstrumentCommissionRate.BrokerID, broker.c_str(), sizeof(QryInstrumentCommissionRate.BrokerID) - 1);
 	strncpy(QryInstrumentCommissionRate.InvestorID, user.c_str(), sizeof(QryInstrumentCommissionRate.InvestorID) - 1);
 	strncpy(QryInstrumentCommissionRate.ExchangeID, "SHFE", sizeof(QryInstrumentCommissionRate.ExchangeID) - 1);
-	strncpy(QryInstrumentCommissionRate.InstrumentID, "au2203", sizeof(QryInstrumentCommissionRate.InstrumentID) - 1);
+	strncpy(QryInstrumentCommissionRate.InstrumentID, "au2403", sizeof(QryInstrumentCommissionRate.InstrumentID) - 1);
 	Spi.m_pUserApi->ReqQryInstrumentCommissionRate(&QryInstrumentCommissionRate, 0);
 	_semaphore.wait();
 
@@ -593,15 +594,18 @@ int main(int argc, char* argv[])
 	Spi.m_pUserApi->ReqQryInstrument(&QryInstrument, 0);
 	_semaphore.wait();
 
+#if 0
 	// 查询申报手续费率（报撤单费率，主要是中金所有此项费用，大连好像要报撤单笔数达到5000笔之上才收）
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	printf("查询申报手续费率 ...\n");
 	CThostFtdcQryInstrumentOrderCommRateField QryInstrumentOrderCommRate = { 0 };
-	strncpy(QryInstrumentOrderCommRate.BrokerID, broker.c_str(), sizeof(QryInstrumentOrderCommRate.BrokerID) - 1);
-	strncpy(QryInstrumentOrderCommRate.InvestorID, user.c_str(), sizeof(QryInstrumentOrderCommRate.InvestorID) - 1);
-	strncpy(QryInstrumentOrderCommRate.InstrumentID, "IF2301", sizeof(QryInstrumentOrderCommRate.InstrumentID) - 1);
+	strncpy(QryInstrumentOrderCommRate.BrokerID, broker.c_str(), broker.size());
+	strncpy(QryInstrumentOrderCommRate.InvestorID, user.c_str(), user.size());
+	strncpy(QryInstrumentOrderCommRate.InstrumentID, "10006480", sizeof("10006480"));
+	strncpy(QryInstrumentOrderCommRate.ExchangeID, "SSE", sizeof("SSE"));
 	Spi.m_pUserApi->ReqQryInstrumentOrderCommRate(&QryInstrumentOrderCommRate, 0);
 	_semaphore.wait();
+#endif
 
 	// 查询行情
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));

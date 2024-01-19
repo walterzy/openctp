@@ -665,6 +665,12 @@ int main(int argc, char* argv[])
 	//Spi.OrderCancel("CFFEX", "IF2201", "xxx");
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+	printf("按任意键下单 ...\n");
+	getchar();
+//	Spi.OrderInsert("SSE", "10006149", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 0.2938, 1);
+	Spi.OrderInsert("SSE", "10006149", THOST_FTDC_D_Sell, THOST_FTDC_OF_Open, 0.2938, 1);
+
+	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	printf("按任意键退出 ...\n");
 	getchar();
 

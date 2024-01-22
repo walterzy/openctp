@@ -380,6 +380,8 @@ public:
 				double_format(pDepthMarketData->OpenInterest), double_format(pDepthMarketData->PreClosePrice), double_format(pDepthMarketData->PreSettlementPrice),
 				double_format(pDepthMarketData->SettlementPrice), pDepthMarketData->UpdateTime, pDepthMarketData->ActionDay, pDepthMarketData->TradingDay, pDepthMarketData->ExchangeID);
 
+		_lastPrice = double_format(pDepthMarketData->LastPrice);
+
 		if (bIsLast) {
 			_semaphore.signal();
 		}
@@ -511,6 +513,7 @@ public:
 	std::string m_appid;
 	std::string m_authcode;
 	unsigned int m_nOrderRef;
+	double _lastPrice;
 
 	CThostFtdcTraderApi* m_pUserApi;
 };
@@ -551,8 +554,8 @@ int main(int argc, char* argv[])
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	printf("查询品种 ...\n");
 	CThostFtdcQryProductField QryProduct = { 0 };
-	Spi.m_pUserApi->ReqQryProduct(&QryProduct, 0);
-	_semaphore.wait();
+//	Spi.m_pUserApi->ReqQryProduct(&QryProduct, 0);
+//	_semaphore.wait();
 
 	// 查询投资者手续费率
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -562,8 +565,8 @@ int main(int argc, char* argv[])
 	strncpy(QryInstrumentCommissionRate.InvestorID, user.c_str(), sizeof(QryInstrumentCommissionRate.InvestorID) - 1);
 	strncpy(QryInstrumentCommissionRate.ExchangeID, "SHFE", sizeof(QryInstrumentCommissionRate.ExchangeID) - 1);
 	strncpy(QryInstrumentCommissionRate.InstrumentID, "au2403", sizeof(QryInstrumentCommissionRate.InstrumentID) - 1);
-	Spi.m_pUserApi->ReqQryInstrumentCommissionRate(&QryInstrumentCommissionRate, 0);
-	_semaphore.wait();
+//	Spi.m_pUserApi->ReqQryInstrumentCommissionRate(&QryInstrumentCommissionRate, 0);
+//	_semaphore.wait();
 
 	// 查询投资者保证金率
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -573,8 +576,8 @@ int main(int argc, char* argv[])
 	strncpy(QryInstrumentCommissionRate.InvestorID, user.c_str(), sizeof(QryInstrumentCommissionRate.InvestorID) - 1);
 	strncpy(QryInstrumentMarginRate.ExchangeID, "SHFE", sizeof(QryInstrumentMarginRate.ExchangeID) - 1);
 	strncpy(QryInstrumentMarginRate.InstrumentID, "au2203", sizeof(QryInstrumentMarginRate.InstrumentID) - 1);
-	Spi.m_pUserApi->ReqQryInstrumentMarginRate(&QryInstrumentMarginRate, 0);
-	_semaphore.wait();
+//	Spi.m_pUserApi->ReqQryInstrumentMarginRate(&QryInstrumentMarginRate, 0);
+//	_semaphore.wait();
 
 	// 查询交易所保证金率
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -584,15 +587,15 @@ int main(int argc, char* argv[])
 	strncpy(QryInstrumentCommissionRate.InvestorID, user.c_str(), sizeof(QryInstrumentCommissionRate.InvestorID) - 1);
 	//strncpy(QryExchangeMarginRate.ExchangeID, "SHFE", sizeof(QryExchangeMarginRate.ExchangeID) - 1);
 	//strncpy(QryExchangeMarginRate.InstrumentID, "au2203", sizeof(QryExchangeMarginRate.InstrumentID) - 1);
-	Spi.m_pUserApi->ReqQryExchangeMarginRate(&QryExchangeMarginRate, 0);
-	_semaphore.wait();
+//	Spi.m_pUserApi->ReqQryExchangeMarginRate(&QryExchangeMarginRate, 0);
+//	_semaphore.wait();
 
 	// 查询合约
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	printf("查询合约 ...\n");
 	CThostFtdcQryInstrumentField QryInstrument = { 0 };
-	Spi.m_pUserApi->ReqQryInstrument(&QryInstrument, 0);
-	_semaphore.wait();
+//	Spi.m_pUserApi->ReqQryInstrument(&QryInstrument, 0);
+//	_semaphore.wait();
 
 #if 0
 	// 查询申报手续费率（报撤单费率，主要是中金所有此项费用，大连好像要报撤单笔数达到5000笔之上才收）
@@ -611,6 +614,8 @@ int main(int argc, char* argv[])
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	printf("查询行情 ...\n");
 	CThostFtdcQryDepthMarketDataField QryDepthMarketData = { 0 };
+	strncpy(QryDepthMarketData.InstrumentID, "10006150", sizeof("10006150"));
+	strncpy(QryDepthMarketData.ExchangeID, "SSE", sizeof("SSE"));
 	Spi.m_pUserApi->ReqQryDepthMarketData(&QryDepthMarketData, 0);
 	_semaphore.wait();
 
@@ -667,12 +672,35 @@ int main(int argc, char* argv[])
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	printf("按任意键下单 ...\n");
 	getchar();
-//	Spi.OrderInsert("SSE", "10006149", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 0.2938, 1);
-	Spi.OrderInsert("SSE", "10006149", THOST_FTDC_D_Sell, THOST_FTDC_OF_Open, 0.2938, 1);
+//	Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, Spi._lastPrice + 0.0001, 1);
+//	Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Open, Spi._lastPrice - 0.0001, 1);
+//	Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 0.0001 + Spi._lastPrice, 1);
+//	Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Close, Spi._lastPrice - 0.0001, 1);
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	printf("按任意键退出 ...\n");
 	getchar();
+
+	// 查询成交
+	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+	printf("查询成交 ...\n");
+	QryTrade = { 0 };
+	Spi.m_pUserApi->ReqQryTrade(&QryTrade, 0);
+	_semaphore.wait();
+
+	// 查询持仓
+	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+	printf("查询持仓 ...\n");
+	QryInvestorPosition = { 0 };
+	Spi.m_pUserApi->ReqQryInvestorPosition(&QryInvestorPosition, 0);
+	_semaphore.wait();
+
+	// 持仓明细
+	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+	printf("持仓明细 ...\n");
+	QryInvestorPositionDetail = { 0 };
+	Spi.m_pUserApi->ReqQryInvestorPositionDetail(&QryInvestorPositionDetail, 0);
+	_semaphore.wait();
 
 	return 0;
 }

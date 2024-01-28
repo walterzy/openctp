@@ -1,13 +1,13 @@
-﻿#include <stdio.h>
+﻿#include <iostream>
 #include <string>
 #include <cstring>
 #include <float.h>
-#include "./CTP/ThostFtdcTraderApi.h"
-
 #include <thread>
 #include <mutex>
 #include <functional>
 #include <condition_variable>
+
+#include "./CTP/ThostFtdcTraderApi.h"
 
 #ifdef _MSC_VER
 #pragma comment (lib, "./CTP/soptthosttraderapi_se.lib")
@@ -22,14 +22,14 @@ public:
 	void wait()
 	{
 		std::unique_lock<std::mutex> lck(mt);
-		if (--count < 0)//资源不足挂起线程
+		if (--count < 0)	//资源不足挂起线程
 			cv.wait(lck);
 	}
 
 	void signal()
 	{
 		std::unique_lock<std::mutex> lck(mt);
-		if (++count <= 0)//有线程挂起，唤醒一个
+		if (++count <= 0)	//有线程挂起，唤醒一个
 			cv.notify_one();
 	}
 
@@ -128,7 +128,7 @@ public:
 		Req.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
 		Req.IsAutoSuspend = 0;
 		Req.UserForceClose = 0;
-		Req.RequestID = 1; // Only used by User
+		Req.RequestID = 1; 	// Only used by User
 
 #ifdef _MSC_VER
 		strncpy_s(Req.InvestUnitID, "XXXX", sizeof(Req.InvestUnitID) - 1); // Only used by User
@@ -137,6 +137,15 @@ public:
 #endif
 
 		return m_pUserApi->ReqOrderInsert(&Req, 0);
+	}
+
+	void insertOrder()
+	{
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, Spi._lastPrice + 0.0001, 1);
+		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Open, Spi._lastPrice - 0.0001, 1);
+		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 0.0001 + Spi._lastPrice, 1);
+		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Close, Spi._lastPrice - 0.0001, 1);
 	}
 
 	// 撤单
@@ -196,7 +205,6 @@ public:
 		printf("Disconnected.\n");
 	}
 
-
 	///认证响应
 	void OnRspAuthenticate(CThostFtdcRspAuthenticateField* pRspAuthenticateField, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
@@ -223,7 +231,6 @@ public:
 
 		m_pUserApi->ReqUserLogin(&Req, 0);
 	}
-
 
 	//登录应答
 	void OnRspUserLogin(CThostFtdcRspUserLoginField* pRspUserLogin, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
@@ -387,6 +394,16 @@ public:
 		}
 	}
 
+	// 查询订单
+	void qryOrder()
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		printf("查询订单 ...\n");
+		CThostFtdcQryOrderField QryOrder = { 0 };
+		m_pUserApi->ReqQryOrder(&QryOrder, 0);
+		_semaphore.wait();
+	}
+
 	// 查询委托列表
 	void OnRspQryOrder(CThostFtdcOrderField* pOrder, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
@@ -403,6 +420,17 @@ public:
 			_semaphore.signal();
 		}
 	}
+
+    // 查询成交
+	void qryTrade()
+	{
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        printf("查询成交 ...\n");
+        CThostFtdcQryTradeField QryTrade = { 0 };
+        m_pUserApi->ReqQryTrade(&QryTrade, 0);
+        _semaphore.wait();
+	}
+
 
 	// 查询成交列表
 	void OnRspQryTrade(CThostFtdcTradeField* pTrade, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
@@ -422,6 +450,16 @@ public:
 	}
 
 	// 查询持仓
+	void qryInvestorPositionField()
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		printf("查询持仓 ...\n");
+		CThostFtdcQryInvestorPositionField QryInvestorPosition = { 0 };
+		m_pUserApi->ReqQryInvestorPosition(&QryInvestorPosition, 0);
+		_semaphore.wait();
+	}
+
+	// 查询持仓
 	void OnRspQryInvestorPosition(CThostFtdcInvestorPositionField* pInvestorPosition, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0) {
@@ -438,6 +476,15 @@ public:
 		}
 	}
 
+    // 持仓明细
+	void qryInvestorPositionDetail()
+	{
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        printf("持仓明细 ...\n");
+        CThostFtdcQryInvestorPositionDetailField QryInvestorPositionDetail = { 0 };
+        m_pUserApi->ReqQryInvestorPositionDetail(&QryInvestorPositionDetail, 0);
+        _semaphore.wait();
+	}
 
 	// 查询持仓明细
 	void OnRspQryInvestorPositionDetail(CThostFtdcInvestorPositionDetailField* pInvestorPositionDetail, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
@@ -454,6 +501,16 @@ public:
 		if (bIsLast) {
 			_semaphore.signal();
 		}
+	}
+
+
+	void qryTradingAccount()
+	{
+		// 查询资金
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		printf("查询资金 ...\n");
+		CThostFtdcQryTradingAccountField QryTradingAccount = { 0 };
+		m_pUserApi->ReqQryTradingAccount(&QryTradingAccount, 0);
 	}
 
 	///请求查询资金账户响应
@@ -544,11 +601,79 @@ int main(int argc, char* argv[])
 	// 等待登录完成
 	_semaphore.wait();
 
+	while(true)
+	{
+		std::cout << "Please pick an action\r\n";
+		std::cout << "1. 查询资金\r\n";
+		std::cout << "2. 查询订单\r\n";
+		std::cout << "3. 查询成交\r\n";
+		std::cout << "4. 查询持仓\r\n";
+		std::cout << "5. 查询结算单\r\n";
+		std::cout << "6. 限价委托\r\n";
+		std::cout << "7. 市价委托\r\n";
+		std::cout << "8. 撤单\r\n";
+		std::cout << "9. 净头寸交易\r\n";
+		std::cout << "0. 退出\r\n";
+		std::cout << "A. 查询持仓\r\n";
+
+		char cmd;
+		for (;;)
+		{
+			scanf("%c", &cmd);
+		}
+
+		switch (cmd)
+		{
+		case '1':
+//			bSucc = trader->qryFund();
+			break;
+		case '2': 
+			Spi.qryOrder();
+			break;
+		case '3': 
+			Spi.qryTrade();
+			break;
+		case '4': 
+			Spi.qryInvestorPositionField();
+			break;
+		case '5': 
+//			bSucc = trader->qrySettle();
+			break;
+		case '6': 
+//			bSucc = trader->entrustLmt(false);
+			break;
+		case '7': 
+//			bSucc = trader->entrustMkt();
+			break;
+		case '8': 
+//			bSucc = trader->cancel();
+			break;
+		case '9':
+//			bSucc = trader->entrustLmt(true);
+			break;
+		case '0': 
+			break;
+		case 'A':
+			Spi.qryInvestorPositionDetail();
+			break;
+
+		default:
+			cmd = 'X';
+			break;
+		}
+
+		if (cmd != '0' && cmd != 'X')
+		{
+			_semaphore.wait();
+		}
+		else if(cmd == '0')
+			break;
+	}
+
 	// 查询交易所
 	printf("查询交易所 ...\n");
 	CThostFtdcQryExchangeField QryExchange = { 0 };
 	Spi.m_pUserApi->ReqQryExchange(&QryExchange, 0);
-	_semaphore.wait();
 
 	// 查询品种
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -626,33 +751,6 @@ int main(int argc, char* argv[])
 	Spi.m_pUserApi->ReqQryOrder(&QryOrder, 0);
 	_semaphore.wait();
 
-	// 查询成交
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("查询成交 ...\n");
-	CThostFtdcQryTradeField QryTrade = { 0 };
-	Spi.m_pUserApi->ReqQryTrade(&QryTrade, 0);
-	_semaphore.wait();
-
-	// 查询持仓
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("查询持仓 ...\n");
-	CThostFtdcQryInvestorPositionField QryInvestorPosition = { 0 };
-	Spi.m_pUserApi->ReqQryInvestorPosition(&QryInvestorPosition, 0);
-	_semaphore.wait();
-
-	// 持仓明细
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("持仓明细 ...\n");
-	CThostFtdcQryInvestorPositionDetailField QryInvestorPositionDetail = { 0 };
-	Spi.m_pUserApi->ReqQryInvestorPositionDetail(&QryInvestorPositionDetail, 0);
-	_semaphore.wait();
-
-	// 查询资金
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("查询资金 ...\n");
-	CThostFtdcQryTradingAccountField QryTradingAccount = { 0 };
-	Spi.m_pUserApi->ReqQryTradingAccount(&QryTradingAccount, 0);
-
 	// 如需下单、撤单，放开下面的代码即可
 	//std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 	//printf("按任意键下单 ...\n");
@@ -668,39 +766,6 @@ int main(int argc, char* argv[])
 	//printf("按任意键撤单 ...\n");
 	//getchar();
 	//Spi.OrderCancel("CFFEX", "IF2201", "xxx");
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("按任意键下单 ...\n");
-	getchar();
-//	Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, Spi._lastPrice + 0.0001, 1);
-//	Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Open, Spi._lastPrice - 0.0001, 1);
-//	Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 0.0001 + Spi._lastPrice, 1);
-//	Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Close, Spi._lastPrice - 0.0001, 1);
-
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("按任意键退出 ...\n");
-	getchar();
-
-	// 查询成交
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("查询成交 ...\n");
-	QryTrade = { 0 };
-	Spi.m_pUserApi->ReqQryTrade(&QryTrade, 0);
-	_semaphore.wait();
-
-	// 查询持仓
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("查询持仓 ...\n");
-	QryInvestorPosition = { 0 };
-	Spi.m_pUserApi->ReqQryInvestorPosition(&QryInvestorPosition, 0);
-	_semaphore.wait();
-
-	// 持仓明细
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("持仓明细 ...\n");
-	QryInvestorPositionDetail = { 0 };
-	Spi.m_pUserApi->ReqQryInvestorPositionDetail(&QryInvestorPositionDetail, 0);
-	_semaphore.wait();
 
 	return 0;
 }

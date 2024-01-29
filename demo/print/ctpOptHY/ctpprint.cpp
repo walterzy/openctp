@@ -87,72 +87,6 @@ public:
 		return 0;
 	}
 
-	// 下单
-	int OrderInsert(const char* ExchangeID, const char* InstrumentID, TThostFtdcDirectionType Direction, TThostFtdcOffsetFlagType OffsetFlag, double Price, unsigned int Qty)
-	{
-		CThostFtdcInputOrderField Req;
-
-		memset(&Req, 0x00, sizeof(Req));
-
-#ifdef _MSC_VER
-		strncpy_s(Req.BrokerID, m_broker.c_str(), sizeof(Req.BrokerID) - 1);
-		strncpy_s(Req.InvestorID, m_user.c_str(), sizeof(Req.InvestorID) - 1);
-		strncpy_s(Req.InstrumentID, InstrumentID, sizeof(Req.InstrumentID) - 1);
-		strncpy_s(Req.ExchangeID, ExchangeID, sizeof(Req.ExchangeID) - 1);
-#else
-		strncpy(Req.BrokerID, m_broker.c_str(), sizeof(Req.BrokerID) - 1);
-		strncpy(Req.InvestorID, m_user.c_str(), sizeof(Req.InvestorID) - 1);
-		strncpy(Req.InstrumentID, InstrumentID, sizeof(Req.InstrumentID) - 1);
-		strncpy(Req.ExchangeID, ExchangeID, sizeof(Req.ExchangeID) - 1);
-#endif
-
-		Req.Direction = Direction;
-		Req.CombOffsetFlag[0] = OffsetFlag;
-		Req.CombHedgeFlag[0] = THOST_FTDC_HF_Speculation;
-		Req.VolumeTotalOriginal = Qty;
-		Req.LimitPrice = Price;
-		Req.OrderPriceType = THOST_FTDC_OPT_LimitPrice;
-
-#ifdef _MSC_VER
-		sprintf_s(Req.OrderRef, "%d", m_nOrderRef++);
-#else		
-		sprintf(Req.OrderRef, "%d", m_nOrderRef++);
-#endif
-
-		Req.TimeCondition = THOST_FTDC_TC_GFD;
-		if (Req.OrderPriceType == THOST_FTDC_OPT_AnyPrice)
-			Req.TimeCondition = THOST_FTDC_TC_IOC;
-		Req.VolumeCondition = THOST_FTDC_VC_AV;
-		Req.MinVolume = 1;
-		Req.ContingentCondition = THOST_FTDC_CC_Immediately;
-		Req.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
-		Req.IsAutoSuspend = 0;
-		Req.UserForceClose = 0;
-		Req.RequestID = 1; 	// Only used by User
-
-#ifdef _MSC_VER
-		strncpy_s(Req.InvestUnitID, "XXXX", sizeof(Req.InvestUnitID) - 1); // Only used by User
-#else	
-		strncpy(Req.InvestUnitID, "XXXX", sizeof(Req.InvestUnitID) - 1); // Only used by User
-#endif
-
-		return m_pUserApi->ReqOrderInsert(&Req, 0);
-	}
-
-	void insertOrder()
-	{
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
-		TThostFtdcDirectionType direct;
-		TThostFtdcOffsetFlagType type;
-
-		std::cout << "请输入买卖方向:0-买,1-卖; 开平方向:0-开仓,1-平仓,2-强平,3-平今,4-平昨,5-强减" << std::endl;
-		std::cin >> direct >> type;
-		OrderInsert("SSE", "10006150", direct, type, _lastPrice, 1);
-		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Open, Spi._lastPrice - 0.0001, 1);
-		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 0.0001 + Spi._lastPrice, 1);
-		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Close, Spi._lastPrice - 0.0001, 1);
-	}
 
 	// 撤单
 	int OrderCancel(const char* ExchangeID, const char* InstrumentID, const char* OrderSysID)
@@ -268,6 +202,73 @@ public:
 #endif
 
 		_semaphore.signal();
+	}
+
+	// 下单
+	int OrderInsert(const char* ExchangeID, const char* InstrumentID, TThostFtdcDirectionType Direction, TThostFtdcOffsetFlagType OffsetFlag, double Price, unsigned int Qty)
+	{
+		CThostFtdcInputOrderField Req;
+
+		memset(&Req, 0x00, sizeof(Req));
+
+#ifdef _MSC_VER
+		strncpy_s(Req.BrokerID, m_broker.c_str(), sizeof(Req.BrokerID) - 1);
+		strncpy_s(Req.InvestorID, m_user.c_str(), sizeof(Req.InvestorID) - 1);
+		strncpy_s(Req.InstrumentID, InstrumentID, sizeof(Req.InstrumentID) - 1);
+		strncpy_s(Req.ExchangeID, ExchangeID, sizeof(Req.ExchangeID) - 1);
+#else
+		strncpy(Req.BrokerID, m_broker.c_str(), sizeof(Req.BrokerID) - 1);
+		strncpy(Req.InvestorID, m_user.c_str(), sizeof(Req.InvestorID) - 1);
+		strncpy(Req.InstrumentID, InstrumentID, sizeof(Req.InstrumentID) - 1);
+		strncpy(Req.ExchangeID, ExchangeID, sizeof(Req.ExchangeID) - 1);
+#endif
+
+		Req.Direction = Direction;
+		Req.CombOffsetFlag[0] = OffsetFlag;
+		Req.CombHedgeFlag[0] = THOST_FTDC_HF_Speculation;
+		Req.VolumeTotalOriginal = Qty;
+		Req.LimitPrice = Price;
+		Req.OrderPriceType = THOST_FTDC_OPT_LimitPrice;
+
+#ifdef _MSC_VER
+		sprintf_s(Req.OrderRef, "%d", m_nOrderRef++);
+#else		
+		sprintf(Req.OrderRef, "%d", m_nOrderRef++);
+#endif
+
+		Req.TimeCondition = THOST_FTDC_TC_GFD;
+		if (Req.OrderPriceType == THOST_FTDC_OPT_AnyPrice)
+			Req.TimeCondition = THOST_FTDC_TC_IOC;
+		Req.VolumeCondition = THOST_FTDC_VC_AV;
+		Req.MinVolume = 1;
+		Req.ContingentCondition = THOST_FTDC_CC_Immediately;
+		Req.ForceCloseReason = THOST_FTDC_FCC_NotForceClose;
+		Req.IsAutoSuspend = 0;
+		Req.UserForceClose = 0;
+		Req.RequestID = 1; 	// Only used by User
+
+#ifdef _MSC_VER
+		strncpy_s(Req.InvestUnitID, "XXXX", sizeof(Req.InvestUnitID) - 1); // Only used by User
+#else	
+		strncpy(Req.InvestUnitID, "XXXX", sizeof(Req.InvestUnitID) - 1); // Only used by User
+#endif
+
+		return m_pUserApi->ReqOrderInsert(&Req, 0);
+	}
+
+	void insertOrder()
+	{
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+		TThostFtdcDirectionType direct;
+		TThostFtdcOffsetFlagType type;
+
+		std::cout << "请输入买卖方向:0-买,1-卖; 开平方向:0-开仓,1-平仓,2-强平,3-平今,4-平昨,5-强减" << std::endl;
+		std::cin >> direct >> type;
+		OrderInsert("SSE", "10006150", direct, type, _lastPrice, 1);
+		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Open, Spi._lastPrice - 0.0001, 1);
+		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 0.0001 + Spi._lastPrice, 1);
+		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Close, Spi._lastPrice - 0.0001, 1);
 	}
 
 	// 下单应答

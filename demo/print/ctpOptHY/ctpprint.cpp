@@ -7,12 +7,213 @@
 #include <functional>
 #include <condition_variable>
 
+#ifdef _MSC_VER
+#include <windows.h>
+#else
+#include <iconv.h>
+#endif
+
 #include "./CTP/ThostFtdcTraderApi.h"
 
 #ifdef _MSC_VER
 #pragma comment (lib, "./CTP/soptthosttraderapi_se.lib")
 #pragma warning(disable : 4996)
 #endif
+
+class UTF8toChar
+{
+public :
+	UTF8toChar(const char *utf8_string)
+	{
+		init(utf8_string);
+	}
+
+	UTF8toChar(const std::string& utf8_string)
+	{
+		init(utf8_string.c_str());
+	}
+
+	void init(const char *utf8_string)
+	{
+		if (0 == utf8_string)
+			t_string = 0;
+		else if (0 == *utf8_string)
+		{
+			needFree = false;
+//			t_string = ("");
+			t_string = 0;
+		}
+		else if ( isPureAscii(utf8_string))
+		{
+			needFree = false;
+			t_string = (char *)utf8_string;
+		}
+		else
+		{
+			// Either TCHAR = Unicode (2 bytes), or utf8_string contains non-ASCII characters.
+			// Needs conversion
+			needFree = true;
+
+			// Convert to Unicode (2 bytes)
+			std::size_t string_len = strlen(utf8_string);
+			std::size_t dst_len = string_len * 2 + 2;
+#ifdef _MSC_VER
+			wchar_t *buffer = new wchar_t[string_len + 1];
+			MultiByteToWideChar(CP_UTF8, 0, utf8_string, -1, buffer, (int)string_len + 1);
+			buffer[string_len] = 0;
+
+			t_string = new char[string_len * 2 + 2];
+			WideCharToMultiByte(CP_ACP, 0, buffer, -1, t_string, (int)dst_len, 0, 0);
+			t_string[string_len * 2 + 1] = 0;
+			delete[] buffer;
+#else
+			iconv_t cd;
+			t_string = new char[dst_len];
+			char* p = t_string;
+			cd = iconv_open("gb2312", "utf-8");
+			if (cd != 0)
+			{
+				memset(t_string, 0, dst_len);
+				iconv(cd, (char**)&utf8_string, &string_len, &p, &dst_len);
+				iconv_close(cd);
+				t_string[dst_len] = '\0';
+			}
+#endif
+		}
+	}
+
+	operator const char*()
+	{
+		return t_string;
+	}
+
+	const char* c_str()
+	{
+		return t_string;
+	}
+
+	~UTF8toChar()
+	{
+		if (needFree)
+			delete[] t_string;
+	}
+
+private :
+	char *t_string;
+	bool needFree;
+
+	//
+	// helper utility to test if a string contains only ASCII characters
+	//
+	bool isPureAscii(const char *s)
+	{
+		while (*s != 0) { if (*(s++) & 0x80) return false; }
+		return true;
+	}
+
+	//disable assignment
+	UTF8toChar(const UTF8toChar &rhs);
+	UTF8toChar &operator=(const UTF8toChar &rhs);
+};
+
+class ChartoUTF8
+{
+public :
+	ChartoUTF8(const std::string& str)
+	{
+		init(str.c_str());
+	}
+
+	ChartoUTF8(const char *t_string)
+	{
+		init(t_string);
+	}
+
+	void init(const char *t_string)
+	{
+		if (0 == t_string)
+			utf8_string = 0;
+		else if (0 == *t_string)
+		{
+//			utf8_string = "";
+			utf8_string = 0;
+			needFree = false;
+		}
+		else if (isPureAscii((char *)t_string))
+		{
+			utf8_string = (char *)t_string;
+			needFree = false;
+		}
+		else
+		{
+
+			needFree = true;
+
+			std::size_t string_len = strlen(t_string);
+			std::size_t dst_len = string_len * 5;
+#ifdef _MSC_VER		
+
+			// Convert to Unicode if not already in unicode.
+			wchar_t *w_string = new wchar_t[string_len + 1];
+			MultiByteToWideChar(CP_ACP, 0, t_string, -1, w_string, (int)string_len + 1);
+			w_string[string_len] = 0;
+
+			// Convert from Unicode (2 bytes) to UTF8
+			utf8_string = new char[dst_len];
+			WideCharToMultiByte(CP_UTF8, 0, w_string, -1, utf8_string, (int)dst_len, 0, 0);
+			utf8_string[string_len * 3] = 0;
+
+			if (w_string != (wchar_t *)t_string)
+				delete[] w_string;
+#else
+			iconv_t cd;
+			utf8_string = new char[dst_len];
+			char* p = utf8_string;
+			cd = iconv_open("utf-8", "gb2312");
+			if (cd != 0)
+			{
+				memset(utf8_string, 0, dst_len);
+				iconv(cd, (char**)&t_string, &string_len, &p, &dst_len);
+				iconv_close(cd);
+			}
+#endif
+		}
+	}
+
+	operator const char*()
+	{
+		return utf8_string;
+	}
+
+	const char* c_str() const
+	{
+		return utf8_string;
+	}
+
+	~ChartoUTF8()
+	{
+		if (needFree)
+			delete[] utf8_string;
+	}
+
+private :
+	char *utf8_string;
+	bool needFree;
+
+	//
+	// helper utility to test if a string contains only ASCII characters
+	//
+	bool isPureAscii(const char *s)
+	{
+		while (*s != 0) { if (*(s++) & 0x80) return false; }
+		return true;
+	}
+
+	//disable assignment
+	ChartoUTF8(const ChartoUTF8 &rhs);
+	ChartoUTF8 &operator=(const ChartoUTF8 &rhs);
+};
+
 
 class semaphore
 {
@@ -149,7 +350,7 @@ public:
 	void OnRspAuthenticate(CThostFtdcRspAuthenticateField* pRspAuthenticateField, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo->ErrorID != 0)
-			printf("OnRspAuthenticate:%s\n", pRspInfo->ErrorMsg);
+			printf("OnRspAuthenticate:%s\n", ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 		else
 			printf("Authenticate succeeded.\n");
 
@@ -176,7 +377,7 @@ public:
 	void OnRspUserLogin(CThostFtdcRspUserLoginField* pRspUserLogin, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0) {
-			printf("Login failed. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("Login failed. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 			return;
 		}
 		printf("Login succeeded.TradingDay:%s,FrontID=%d,SessionID=%d\n", pRspUserLogin->TradingDay, pRspUserLogin->FrontID, pRspUserLogin->SessionID);
@@ -262,10 +463,12 @@ public:
 
 		TThostFtdcDirectionType direct;
 		TThostFtdcOffsetFlagType type;
+		std::string InstrumentID;
+		double price;
 
-		std::cout << "请输入买卖方向:0-买,1-卖; 开平方向:0-开仓,1-平仓,2-强平,3-平今,4-平昨,5-强减" << std::endl;
-		std::cin >> direct >> type;
-		OrderInsert("SSE", "10006150", direct, type, _lastPrice, 1);
+		std::cout << "请输入: InstrumentID; 买卖方向:0-买,1-卖; 开平方向:0-开仓,1-平仓,2-强平,3-平今,4-平昨,5-强减; 价格:价格(0.0001为最小单位)" << std::endl;
+		std::cin >> InstrumentID >> direct >> type >> price;
+		OrderInsert("SSE", InstrumentID.c_str(), direct, type, _lastPrice, 1);
 		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Open, Spi._lastPrice - 0.0001, 1);
 		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 0.0001 + Spi._lastPrice, 1);
 		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Close, Spi._lastPrice - 0.0001, 1);
@@ -275,7 +478,7 @@ public:
 	void OnRspOrderInsert(CThostFtdcInputOrderField* pInputOrder, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0) {
-			printf("OnRspOrderInsert. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnRspOrderInsert. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 			return;
 		}
 		printf("OnRspOrderInsert:InstrumentID:%s,ExchangeID:%s,VolumeTotalOriginal:%d,LimitPrice:%lf,RequestID:%d,InvestUnitID:%s\n", pInputOrder->InstrumentID, pInputOrder->ExchangeID, pInputOrder->VolumeTotalOriginal, pInputOrder->LimitPrice, pInputOrder->RequestID, pInputOrder->InvestUnitID);
@@ -285,7 +488,7 @@ public:
 	void OnRspOrderAction(CThostFtdcInputOrderActionField* pInputOrderAction, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0) {
-			printf("OnRspOrderAction. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnRspOrderAction. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 			return;
 		}
 		printf("OnRspOrderAction:InstrumentID:%s,ExchangeID:%s,OrderSysID:%s,FrontID:%d,SessionID:%d,OrderRef:%s,RequestID:%d,InvestUnitID:%s\n",pInputOrderAction->InstrumentID,pInputOrderAction->ExchangeID,pInputOrderAction->OrderSysID, pInputOrderAction->FrontID, pInputOrderAction->SessionID, pInputOrderAction->OrderRef,pInputOrderAction->RequestID,pInputOrderAction->InvestUnitID);
@@ -325,7 +528,9 @@ public:
 	void OnRspQryExchange(CThostFtdcExchangeField* pExchange, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pExchange)
-			printf("OnRspQryExchange:ExchangeID:%s,ExchangeName:%s\n", pExchange->ExchangeID, pExchange->ExchangeName);
+		{
+			printf("OnRspQryExchange:ExchangeID:%s,ExchangeName:%s\n", pExchange->ExchangeID, ChartoUTF8(pExchange->ExchangeName).c_str());
+		}
 
 		if (bIsLast) {
 			_semaphore.signal();
@@ -414,7 +619,7 @@ public:
 	void OnRspQryInstrument(CThostFtdcInstrumentField* pInstrument, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pInstrument)
-			printf("OnRspQryInstrument:InstrumentID:%s,InstrumentName:%s,ProductID:%s,PriceTick:%lf,UnderlyingInstrID:%s,StrikePrice:%lf,ExchangeID:%s\n", pInstrument->InstrumentID, pInstrument->InstrumentName, pInstrument->ProductID, pInstrument->PriceTick, pInstrument->UnderlyingInstrID, pInstrument->StrikePrice, pInstrument->ExchangeID);
+			printf("OnRspQryInstrument:InstrumentID:%s,InstrumentName:%s,ProductID:%s,PriceTick:%lf,UnderlyingInstrID:%s,StrikePrice:%lf,ExchangeID:%s\n", pInstrument->InstrumentID, ChartoUTF8(pInstrument->InstrumentName).c_str(), pInstrument->ProductID, pInstrument->PriceTick, pInstrument->UnderlyingInstrID, pInstrument->StrikePrice, pInstrument->ExchangeID);
 
 		if (bIsLast) {
 			_semaphore.signal();
@@ -426,7 +631,8 @@ public:
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		CThostFtdcQryDepthMarketDataField QryDepthMarketData = { 0 };
-		strncpy(QryDepthMarketData.InstrumentID, "10006150", sizeof("10006150"));
+		std::cout << "请输入合约ID: " << std::endl;
+		std::cin >> QryDepthMarketData.InstrumentID;
 		strncpy(QryDepthMarketData.ExchangeID, "SSE", sizeof("SSE"));
 		m_pUserApi->ReqQryDepthMarketData(&QryDepthMarketData, 0);
 		_semaphore.wait();
@@ -436,7 +642,7 @@ public:
 	void OnRspQryDepthMarketData(CThostFtdcDepthMarketDataField* pDepthMarketData, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0) {
-			printf("OnRspQryDepthMarketData. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnRspQryDepthMarketData. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 			return;
 		}
 
@@ -468,13 +674,13 @@ public:
 	void OnRspQryOrder(CThostFtdcOrderField* pOrder, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0) {
-			printf("OnRspQryOrder. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnRspQryOrder. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 			return;
 		}
 
 		if(pOrder)
 			printf("OnRspQryOrder:BrokerID:%s,BrokerOrderSeq:%d,OrderLocalID:%s,InstrumentID:%s,Direction:%s,VolumeTotalOriginal:%d,LimitPrice:%lf,VolumeTraded:%d,VolumeTotal:%d,OrderSysID:%s,FrontID:%d,SessionID:%d,OrderRef:%s,OrderStatus:%c,StatusMsg:%s,ExchangeID:%s,InsertTime:%s,ClientID:%s,RequestID:%d,InvestUnitID:%s\n",
-				pOrder->BrokerID,pOrder->BrokerOrderSeq,pOrder->OrderLocalID, pOrder->InstrumentID, direction_to_string(pOrder->Direction).c_str(), pOrder->VolumeTotalOriginal, pOrder->LimitPrice, pOrder->VolumeTraded, pOrder->VolumeTotal, pOrder->OrderSysID, pOrder->FrontID, pOrder->SessionID, pOrder->OrderRef, pOrder->OrderStatus, pOrder->StatusMsg, pOrder->ExchangeID, pOrder->InsertTime,pOrder->ClientID,pOrder->RequestID,pOrder->InvestUnitID);
+				pOrder->BrokerID,pOrder->BrokerOrderSeq,pOrder->OrderLocalID, pOrder->InstrumentID, direction_to_string(pOrder->Direction).c_str(), pOrder->VolumeTotalOriginal, pOrder->LimitPrice, pOrder->VolumeTraded, pOrder->VolumeTotal, pOrder->OrderSysID, pOrder->FrontID, pOrder->SessionID, pOrder->OrderRef, pOrder->OrderStatus, ChartoUTF8(pOrder->StatusMsg).c_str(), pOrder->ExchangeID, pOrder->InsertTime,pOrder->ClientID,pOrder->RequestID,pOrder->InvestUnitID);
 
 		if (bIsLast) {
 			_semaphore.signal();
@@ -494,7 +700,7 @@ public:
 	void OnRspQryTrade(CThostFtdcTradeField* pTrade, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0) {
-			printf("OnRspQryTrade. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnRspQryTrade. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 			return;
 		}
 
@@ -520,7 +726,7 @@ public:
 	void OnRspQryInvestorPosition(CThostFtdcInvestorPositionField* pInvestorPosition, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0) {
-			printf("OnRspQryInvestorPosition. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnRspQryInvestorPosition. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 			return;
 		}
 
@@ -547,7 +753,7 @@ public:
 	void OnRspQryInvestorPositionDetail(CThostFtdcInvestorPositionDetailField* pInvestorPositionDetail, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0) {
-			printf("OnRspQryInvestorPositionDetail. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnRspQryInvestorPositionDetail. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 			return;
 		}
 
@@ -585,7 +791,7 @@ public:
 	void OnRtnOrder(CThostFtdcOrderField* pOrder)
 	{
 		printf("OnRtnOrder:BrokerID:%s,BrokerOrderSeq:%d,OrderLocalID:%s,InstrumentID:%s,Direction:%s,VolumeTotalOriginal:%d,LimitPrice:%lf,VolumeTraded:%d,VolumeTotal:%d,OrderSysID:%s,FrontID:%d,SessionID:%d,OrderRef:%s,OrderStatus:%c,StatusMsg:%s,ExchangeID:%s,InsertTime:%s,ClientID:%s,RequestID:%d,InvestUnitID:%s\n",
-			pOrder->BrokerID, pOrder->BrokerOrderSeq, pOrder->OrderLocalID, pOrder->InstrumentID, direction_to_string(pOrder->Direction).c_str(), pOrder->VolumeTotalOriginal, pOrder->LimitPrice, pOrder->VolumeTraded, pOrder->VolumeTotal, pOrder->OrderSysID, pOrder->FrontID, pOrder->SessionID, pOrder->OrderRef, pOrder->OrderStatus, pOrder->StatusMsg, pOrder->ExchangeID, pOrder->InsertTime,pOrder->ClientID,pOrder->RequestID,pOrder->InvestUnitID);
+			pOrder->BrokerID, pOrder->BrokerOrderSeq, pOrder->OrderLocalID, pOrder->InstrumentID, direction_to_string(pOrder->Direction).c_str(), pOrder->VolumeTotalOriginal, pOrder->LimitPrice, pOrder->VolumeTraded, pOrder->VolumeTotal, pOrder->OrderSysID, pOrder->FrontID, pOrder->SessionID, pOrder->OrderRef, pOrder->OrderStatus, ChartoUTF8(pOrder->StatusMsg).c_str(), pOrder->ExchangeID, pOrder->InsertTime,pOrder->ClientID,pOrder->RequestID,pOrder->InvestUnitID);
 	}
 
 	// 成交回报
@@ -599,7 +805,7 @@ public:
 	void OnErrRtnOrderInsert(CThostFtdcInputOrderField* pInputOrder, CThostFtdcRspInfoField* pRspInfo)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0)
-			printf("OnErrRtnOrderInsert. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnErrRtnOrderInsert. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 
 		if(pInputOrder)
 			printf("OnErrRtnOrderInsert:OrderRef:%s,InstrumentID:%s,Direction:%s,VolumeTotalOriginal:%d,LimitPrice:%lf,ExchangeID:%s,RequestID:%d,InvestUnitID:%s\n",
@@ -610,7 +816,7 @@ public:
 	void OnErrRtnOrderAction(CThostFtdcOrderActionField* pOrderAction, CThostFtdcRspInfoField* pRspInfo)
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0)
-			printf("OnErrRtnOrderAction. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnErrRtnOrderAction. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 
 		if (pOrderAction)
 			printf("OnErrRtnOrderAction:FrontID:%d,SessionID:%d,OrderRef:%s,InstrumentID:%s,OrderActionRef:%d,OrderSysID:%s,LimitPrice:%lf,ExchangeID:%s,RequestID:%d,InvestUnitID:%s\n",
@@ -634,7 +840,7 @@ public:
 	void OnRspQrySettlementInfo(CThostFtdcSettlementInfoField *pSettlementInfo, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) 
 	{
 		if (pRspInfo && pRspInfo->ErrorID != 0)
-			printf("OnRspQrySettlementInfo. %d - %s\n", pRspInfo->ErrorID, pRspInfo->ErrorMsg);
+			printf("OnRspQrySettlementInfo. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 
 		if (pSettlementInfo)
 			printf("OnRspQrySettlementInfo:TradingDay:%s,SettlementID:%d,BrokerID:%s,InvestorID:%s\n",
@@ -665,6 +871,8 @@ void display_usage()
 	printf("example:ctpprint tcp://180.168.146.187:10130 9999 000001 888888 simnow_client_test 0000000000000000\n");
 }
 
+#pragma execution_character_set("utf-8")
+//#pragma execution_character_set("gdk-utf8")
 
 int main(int argc, char* argv[])
 {

@@ -280,9 +280,17 @@ public:
 
 	int Run()
 	{
+		std::cout << "CTP交易接口开始运行" << std::endl;
+		std::cout << "交易服务器：" << m_host << std::endl;
 		m_pUserApi->RegisterFront((char*)m_host.c_str());
+
+		std::cout << "SubscribePrivateTopic:THOST_TERT_QUICK" << std::endl;
 		m_pUserApi->SubscribePrivateTopic(THOST_TERT_QUICK);
+
+		std::cout << "SubscribePublicTopic:THOST_TERT_QUICK" << std::endl;
 		m_pUserApi->SubscribePublicTopic(THOST_TERT_QUICK);
+
+		std::cout << "Init ..." << std::endl;
 		m_pUserApi->Init();
 
 		return 0;
@@ -291,7 +299,8 @@ public:
 	//连接成功
 	void OnFrontConnected()
 	{
-		printf("Connected.\n");
+		std::cout << __FUNCTION__ << std::endl;
+
 		CThostFtdcReqAuthenticateField Req;
 		memset(&Req, 0x00, sizeof(Req));
 
@@ -306,8 +315,8 @@ public:
 		strncpy(Req.AuthCode, m_authcode.c_str(), sizeof(Req.AuthCode) - 1);
 		strncpy(Req.AppID, m_appid.c_str(), sizeof(Req.AppID) - 1);
 #endif
-
 		m_pUserApi->ReqAuthenticate(&Req, 0);
+		std::cout << "ReqAuthenticate ..." << std::endl;
 	}
 
 	//连接断开
@@ -320,14 +329,12 @@ public:
 	void OnRspAuthenticate(CThostFtdcRspAuthenticateField* pRspAuthenticateField, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
 		if (pRspInfo->ErrorID != 0)
-			printf("OnRspAuthenticate:%s\n", ChartoUTF8(pRspInfo->ErrorMsg).c_str());
+			printf("%s: %s\n", __FUNCTION__, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 		else
 			printf("Authenticate succeeded.\n");
 
 		// 登录
-		printf("Login ...\n");
 		CThostFtdcReqUserLoginField Req;
-
 		memset(&Req, 0x00, sizeof(Req));
 
 #ifdef _MSC_VER
@@ -341,6 +348,7 @@ public:
 #endif
 
 		m_pUserApi->ReqUserLogin(&Req, 0);
+		std::cout << "Login ...\n";
 	}
 
 	//登录应答
@@ -350,12 +358,13 @@ public:
 			printf("Login failed. %d - %s\n", pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
 			return;
 		}
-		printf("Login succeeded.TradingDay:%s,FrontID=%d,SessionID=%d\n", pRspUserLogin->TradingDay, pRspUserLogin->FrontID, pRspUserLogin->SessionID);
+		printf("Login succeeded: TradingDay: %s, FrontID = %d, SessionID = %d\n", 
+			pRspUserLogin->TradingDay, pRspUserLogin->FrontID, pRspUserLogin->SessionID);
+		
 		m_nOrderRef = atol(pRspUserLogin->MaxOrderRef);
 
 		// 确认结算单
 		CThostFtdcSettlementInfoConfirmField SettlementInfoConfirmField;
-
 		memset(&SettlementInfoConfirmField, 0x00, sizeof(SettlementInfoConfirmField));
 
 #ifdef _MSC_VER
@@ -363,17 +372,35 @@ public:
 		strncpy_s(SettlementInfoConfirmField.InvestorID, pRspUserLogin->UserID, sizeof(SettlementInfoConfirmField.InvestorID) - 1);
 		strncpy_s(SettlementInfoConfirmField.ConfirmDate, pRspUserLogin->TradingDay, sizeof(SettlementInfoConfirmField.ConfirmDate) - 1);
 		strncpy_s(SettlementInfoConfirmField.ConfirmTime, pRspUserLogin->LoginTime, sizeof(SettlementInfoConfirmField.ConfirmTime) - 1);
-		m_pUserApi->ReqSettlementInfoConfirm(&SettlementInfoConfirmField, 0);
 #else
 		strncpy(SettlementInfoConfirmField.BrokerID, pRspUserLogin->BrokerID, sizeof(SettlementInfoConfirmField.BrokerID) - 1);
 		strncpy(SettlementInfoConfirmField.InvestorID, pRspUserLogin->UserID, sizeof(SettlementInfoConfirmField.InvestorID) - 1);
 		strncpy(SettlementInfoConfirmField.ConfirmDate, pRspUserLogin->TradingDay, sizeof(SettlementInfoConfirmField.ConfirmDate) - 1);
 		strncpy(SettlementInfoConfirmField.ConfirmTime, pRspUserLogin->LoginTime, sizeof(SettlementInfoConfirmField.ConfirmTime) - 1);
-		m_pUserApi->ReqSettlementInfoConfirm(&SettlementInfoConfirmField, 0);
 #endif
+		m_pUserApi->ReqSettlementInfoConfirm(&SettlementInfoConfirmField, 0);
+		std::cout << "Confirm Settlement ...\n";
 
 		_semaphore.signal();
 	}
+
+	///投资者结算结果确认响应
+	virtual void OnRspSettlementInfoConfirm(CThostFtdcSettlementInfoConfirmField *pSettlementInfoConfirm, CThostFtdcRspInfoField *pRspInfo, int nRequestID, bool bIsLast) 
+	{
+		if (pRspInfo && pRspInfo->ErrorID != 0)
+			printf("%s: %d - %s\n", __FUNCTION__, pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
+
+		if (pSettlementInfoConfirm)
+			printf("%s: BrokerID: %s, InvestorID: %s, currencyID: %s\n", __FUNCTION__, 
+				pSettlementInfoConfirm->BrokerID, pSettlementInfoConfirm->InvestorID, pSettlementInfoConfirm->CurrencyID);
+		else
+			printf("%s: Confirm failed.\n", __FUNCTION__);
+
+		if (bIsLast) {
+//		_semaphore.wait();
+			printf("Query completed.\n");
+		}
+	};
 
 	// 下单
 	int OrderInsert(const char* ExchangeID, const char* InstrumentID, TThostFtdcDirectionType Direction, TThostFtdcOffsetFlagType OffsetFlag, double Price, unsigned int Qty)
@@ -505,7 +532,7 @@ public:
 	// 查询品种
 	void qryProduct()
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+//		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		printf("查询品种 ...\n");
 		CThostFtdcQryProductField QryProduct = { 0 };
 		m_pUserApi->ReqQryProduct(&QryProduct, 0);
@@ -594,15 +621,15 @@ public:
 	// 查询交易所保证金率
 	void qryExchangeMarginRate()
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-		printf("查询交易所保证金率, 请输入InstrumentID ...\n");
+		std::cout << "查询交易所保证金率, 请输入InstrumentID and HedgeFlag: " << std::endl;;
 
 		CThostFtdcQryExchangeMarginRateField QryExchangeMarginRate = { 0 };
-		std::cin >> QryExchangeMarginRate.InstrumentID;
+		std::cin >> QryExchangeMarginRate.InstrumentID >> QryExchangeMarginRate.HedgeFlag;
 
 		strncpy(QryExchangeMarginRate.BrokerID, "8888", sizeof(QryExchangeMarginRate.BrokerID) - 1);
 		strncpy(QryExchangeMarginRate.ExchangeID, "SSE", sizeof(QryExchangeMarginRate.ExchangeID) - 1);
-		QryExchangeMarginRate.HedgeFlag = 1;
+		strncpy(QryExchangeMarginRate.InstrumentID, m_user.c_str(), sizeof(QryExchangeMarginRate.InstrumentID) - 1);
+
 		m_pUserApi->ReqQryExchangeMarginRate(&QryExchangeMarginRate, 0);
 		_semaphore.wait();
 	}
@@ -625,8 +652,13 @@ public:
 	// 查询合约
 	void qryInstrument()
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		CThostFtdcQryInstrumentField QryInstrument = { 0 };
+		std::cout << "请输入合约ID: " << std::endl;
+		std::cin >> QryInstrument.InstrumentID;
+		if  (0 == strcmp(QryInstrument.InstrumentID, "0000000"))
+		{
+			memset(&QryInstrument, 0x00, sizeof(QryInstrument));
+		}
 		m_pUserApi->ReqQryInstrument(&QryInstrument, 0);
 		_semaphore.wait();
 	}
@@ -634,7 +666,7 @@ public:
 	// 查询合约列表
 	void OnRspQryInstrument(CThostFtdcInstrumentField* pInstrument, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
 	{
-		if ((pInstrument) && (0 == strcmp("10006150",pInstrument->InstrumentID) || 0 == strcmp("10006149",pInstrument->InstrumentID))) // 过滤指定合约"
+		if ((pInstrument)) // 过滤指定合约"
 			printf("OnRspQryInstrument:InstrumentID:%s,InstrumentName:%s,ProductID:%s,PriceTick:%lf,UnderlyingInstrID:%s,StrikePrice:%lf,ExchangeID:%s\n", pInstrument->InstrumentID, ChartoUTF8(pInstrument->InstrumentName).c_str(), pInstrument->ProductID, pInstrument->PriceTick, pInstrument->UnderlyingInstrID, pInstrument->StrikePrice, pInstrument->ExchangeID);
 
 		if (bIsLast) {
@@ -675,6 +707,7 @@ public:
 			_semaphore.signal();
 		}
 	}
+//		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
 	// 查询订单
 	void qryOrder()
@@ -730,6 +763,178 @@ public:
 			_semaphore.signal();
 		}
 	}
+
+	///请求查询投资者
+	void qryInvestor()
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));	
+		CThostFtdcQryInvestorField QryInvestor = { 0 };
+		m_pUserApi->ReqQryInvestor(&QryInvestor, 0);
+		_semaphore.wait();
+	}
+
+	// 查询投资者
+	void OnRspQryInvestor(CThostFtdcInvestorField* pInvestor, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if (pRspInfo && pRspInfo->ErrorID != 0) {
+			printf("%s: %d - %s\n", __FUNCTION__, pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
+			return;
+		}
+
+		if (pInvestor)
+		{
+			printf("%s: InvestorID: %s, BrokerID: %s, InvestorGroupID: %s, InvestorName: %s, IdentifiedCardType: %c, \nIdentifiedCardNo: %s, IsActive: %d, Telephone: %s, Address: %s, \nOpenDate: %s, Mobile: %s, CommModelID: %s, MarginModelID: %s\n", __FUNCTION__,	
+				pInvestor->InvestorID, pInvestor->BrokerID, pInvestor->InvestorGroupID, 
+				ChartoUTF8(pInvestor->InvestorName).c_str(), pInvestor->IdentifiedCardType, pInvestor->IdentifiedCardNo, pInvestor->IsActive, pInvestor->Telephone, 
+				ChartoUTF8(pInvestor->Address).c_str(), pInvestor->OpenDate, pInvestor->Mobile, pInvestor->CommModelID, pInvestor->MarginModelID);
+		}
+		
+		if (bIsLast) {
+			printf("Query completed.\n");
+			_semaphore.signal();
+		}	
+	}
+
+	// 查询交易编码
+	void qryTradingCode()
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		CThostFtdcQryTradingCodeField QryTradingCode = { 0 };
+		m_pUserApi->ReqQryTradingCode(&QryTradingCode, 0);
+		_semaphore.wait();
+	}
+
+	// 查询交易编码
+	void OnRspQryTradingCode(CThostFtdcTradingCodeField* pTradingCode, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if (pRspInfo && pRspInfo->ErrorID != 0) {
+			printf("%s: %d - %s\n", __FUNCTION__, pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
+			return;
+		}
+
+		if (pTradingCode)
+			printf("%s: InvestorID: %s, BrokerID: %s, ExchangeID: %s, ClientID: %s, IsActive: %d, ClientIDType: %c, \r\nBranchID: %s, BizType: %d, InvestUnitID: %s\n", __FUNCTION__,
+				pTradingCode->InvestorID, pTradingCode->BrokerID, pTradingCode->ExchangeID, pTradingCode->ClientID, pTradingCode->IsActive, pTradingCode->ClientIDType, pTradingCode->BranchID, pTradingCode->BizType, pTradingCode->InvestUnitID);
+
+		if (bIsLast) {
+			printf("Query completed.\n");
+			_semaphore.signal();
+		}
+	}
+
+	
+	// 查询转帐银行
+	void qryTransferBank()
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		CThostFtdcQryTransferBankField QryTransferBank = { 0 };
+		m_pUserApi->ReqQryTransferBank(&QryTransferBank, 0);
+		_semaphore.wait();
+	}
+
+	void OnRspQryTransferBank(CThostFtdcTransferBankField* pTransferBank, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if (pRspInfo && pRspInfo->ErrorID != 0) {
+			printf("%s: %d - %s\n", __FUNCTION__, pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
+			return;
+		}
+
+		if (pTransferBank)
+			printf("%s: BankID: %s, BankBrchID: %s, BankName: %s\n", __FUNCTION__, pTransferBank->BankID, pTransferBank->BankBrchID, ChartoUTF8(pTransferBank->BankName).c_str());
+		else
+			printf("%s: NULL\n", __FUNCTION__);
+
+		if (bIsLast) {
+			printf("Query completed.\n");
+			_semaphore.signal();
+		}
+	}
+
+	// 查询期权交易成本
+	void qryOptionInstrTradeCost()
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		CThostFtdcQryOptionInstrTradeCostField QryOptionInstrTradeCost = { 0 };
+		m_pUserApi->ReqQryOptionInstrTradeCost(&QryOptionInstrTradeCost, 0);
+		_semaphore.wait();
+	}
+
+	void OnRspQryOptionInstrTradeCost(CThostFtdcOptionInstrTradeCostField* pOptionInstrTradeCost, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if (pRspInfo && pRspInfo->ErrorID != 0) {
+			printf("%s: %d - %s\n", __FUNCTION__, pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
+			return;
+		}
+
+		if (pOptionInstrTradeCost)
+			printf("%s: BrokerID: %s, InvestorID: %s, InstrumentID: %s, HedgeFlag: %c, FixedMargin: %lf, MiniMargin: %lf, Royalty: %lf, ExchFixedMargin: %lf, ExchMiniMargin: %lf, ExchangeID: %s, InvestUnitID: %s\n", __FUNCTION__,
+				pOptionInstrTradeCost->BrokerID, pOptionInstrTradeCost->InvestorID, pOptionInstrTradeCost->InstrumentID, pOptionInstrTradeCost->HedgeFlag, pOptionInstrTradeCost->FixedMargin, pOptionInstrTradeCost->MiniMargin, pOptionInstrTradeCost->Royalty, pOptionInstrTradeCost->ExchFixedMargin, pOptionInstrTradeCost->ExchMiniMargin, pOptionInstrTradeCost->ExchangeID, pOptionInstrTradeCost->InvestUnitID);
+		else
+			printf("%s: NULL\n", __FUNCTION__);
+
+		if (bIsLast) {
+			printf("Query completed.\n");
+			_semaphore.signal();
+		}
+	}
+
+	// 查询询价
+	void qryForQuote()
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		CThostFtdcQryForQuoteField QryForQuote = { 0 };
+		m_pUserApi->ReqQryForQuote(&QryForQuote, 0);
+		_semaphore.wait();
+	}
+
+	void OnRspQryForQuote(CThostFtdcForQuoteField* pForQuote, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if (pRspInfo && pRspInfo->ErrorID != 0) {
+			printf("%s: %d - %s\n", __FUNCTION__, pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
+			return;
+		}
+
+		if (pForQuote)
+			printf("%s: BrokerID: %s, InvestorID: %s, InstrumentID: %s, ForQuoteRef: %s, UserID: %s, ForQuoteLocalID: %s, ExchangeID: %s, ParticipantID %s, ClientID: %s, ExchangeInstID: %s, TraderID: %s, InstallID: %d, InsertDate: %s, InsertTime: %s, ForQuoteStatus: %c, FrontID: %d, SessionID: %d, StatusMsg: %s, ActiveUserID: %s, BrokerForQutoSeq: %d, InvestUnitID: %s\n", __FUNCTION__, 
+				pForQuote->BrokerID, pForQuote->InvestorID, pForQuote->InstrumentID, pForQuote->ForQuoteRef, pForQuote->UserID, pForQuote->ForQuoteLocalID, pForQuote->ExchangeID, pForQuote->ParticipantID, pForQuote->ClientID, pForQuote->ExchangeInstID, pForQuote->TraderID, pForQuote->InstallID, pForQuote->InsertDate, pForQuote->InsertTime, pForQuote->ForQuoteStatus, pForQuote->FrontID, pForQuote->SessionID, ChartoUTF8(pForQuote->StatusMsg).c_str(), pForQuote->ActiveUserID, pForQuote->BrokerForQutoSeq, pForQuote->InvestUnitID);
+		else
+			printf("%s: NULL\n", __FUNCTION__);
+
+		if (bIsLast) {
+			printf("Query completed.\n");
+			_semaphore.signal();
+		}
+	}
+
+
+	// 查询经纪公司交易算法
+	void qryBrokerTradingAlgos()
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		CThostFtdcQryBrokerTradingAlgosField QryBrokerTradingAlgos = { 0 };
+		m_pUserApi->ReqQryBrokerTradingAlgos(&QryBrokerTradingAlgos, 0);
+		_semaphore.wait();
+	}
+
+	void OnRspQryBrokerTradingAlgos(CThostFtdcBrokerTradingAlgosField* pBrokerTradingAlgos, CThostFtdcRspInfoField* pRspInfo, int nRequestID, bool bIsLast)
+	{
+		if (pRspInfo && pRspInfo->ErrorID != 0) {
+			printf("%s: %d - %s\n", __FUNCTION__, pRspInfo->ErrorID, ChartoUTF8(pRspInfo->ErrorMsg).c_str());
+			return;
+		}
+
+		if (pBrokerTradingAlgos)
+			printf("%s: BrokerID: %s, ExchangeID: %s, InstrumentID: %s, HandlePositionAlgoID: %c, FindMarginRateAlgoID: %c, HandleTradingAccountAlgoID: %c\n", __FUNCTION__,
+				pBrokerTradingAlgos->BrokerID, pBrokerTradingAlgos->ExchangeID, pBrokerTradingAlgos->InstrumentID, pBrokerTradingAlgos->HandlePositionAlgoID, pBrokerTradingAlgos->FindMarginRateAlgoID, pBrokerTradingAlgos->HandleTradingAccountAlgoID);
+		else
+			printf("%s: NULL\n", __FUNCTION__);
+
+		if (bIsLast) {
+			printf("Query completed.\n");
+			_semaphore.signal();
+		}
+	}
+
 
 	// 查询持仓
 	void qryInvestorPositionField()
@@ -789,7 +994,7 @@ public:
 	// 查询资金
 	void qryTradingAccount()
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+//		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		CThostFtdcQryTradingAccountField QryTradingAccount = { 0 };
 		m_pUserApi->ReqQryTradingAccount(&QryTradingAccount, 0);
 		_semaphore.signal();
@@ -848,12 +1053,14 @@ public:
 	///查询投资者结算结果
 	void ReqQrySettlementInfo()
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+		std::cout << __FUNCTION__ << std::endl;
+
 		CThostFtdcQrySettlementInfoField QrySettlementInfo = { 0 };
 		strncpy(QrySettlementInfo.BrokerID, "8888", sizeof(QrySettlementInfo.BrokerID) - 1);
-		strncpy(QrySettlementInfo.InvestorID, "A111087180", sizeof(QrySettlementInfo.InvestorID) - 1);
-		strncpy(QrySettlementInfo.TradingDay, "20240129", sizeof(QrySettlementInfo.TradingDay) - 1);
+		strncpy(QrySettlementInfo.InvestorID, "333306255", sizeof(QrySettlementInfo.InvestorID) - 1);
+		strncpy(QrySettlementInfo.TradingDay, m_pUserApi->GetTradingDay(), sizeof(QrySettlementInfo.TradingDay) - 1);
 		strncpy(QrySettlementInfo.AccountID, "333306255", sizeof(QrySettlementInfo.AccountID) - 1);
+		
 		m_pUserApi->ReqQrySettlementInfo(&QrySettlementInfo, 0);
 		_semaphore.wait();
 
@@ -909,6 +1116,8 @@ int main(int argc, char* argv[])
 
 	CApplication Spi(host, broker, user, password, appid, authcode);
 
+	std::cout << "Version : " << Spi.m_pUserApi->GetApiVersion() << std::endl;
+
 	// 启动
 	if (Spi.Run() < 0)
 		return -1;
@@ -935,72 +1144,91 @@ int main(int argc, char* argv[])
 		std::cout << "d. 查询保证金率\r\n";
 		std::cout << "e. 查询品种	";
 		std::cout << "f. 查询合约	";
-		std::cout << "g. 查询品种\r\n";
+		std::cout << "g. 查询投资者	";
+		std::cout << "h. 查询交易编码	";
+		std::cout << "i. 查询转帐银行	";
+		std::cout << "j. 查询期权交易成本	";
+		std::cout << "k. 查询询价\r\n";
+		std::cout << "l. 查询经纪公司交易算法	\n";
 
 		char cmd;
 		std::cin >> cmd;
 
 		switch (cmd)
 		{
-		case '1':	// 查询资金
-			Spi.qryTradingAccount();
-			break;
-		case '2': 	// 查询订单
-			Spi.qryOrder();
-			break;
-		case '3': 	// 查询成交
-			Spi.qryTrade();
-			break;
-		case '4': // 查询持仓
-			Spi.qryInvestorPositionField();
-			break;
-		case '5': // 查询结算单
-			Spi.ReqQrySettlementInfo();
-			break;
-		case '6': 
-//			bSucc = trader->entrustLmt(false);
-			break;
-		case '7': 
-			Spi.insertOrder();
-			break;
-		case '8': 
-			Spi.CancelOrder();
-			break;
-		case '9':
-//			bSucc = trader->entrustLmt(true);
-			break;
-		case '0': 
-			break;
-		case 'a':
-			Spi.qryInvestorPositionDetail();
-			break;
-		case 'b':
-			Spi.qryDepthMarketdata();
-			break;
-		case 'c':
-			Spi.qryExchange();
-			break;
-		case 'd': // 查询保证金率
-			Spi.qryExchangeMarginRate();
-			break;
-		case 'e':
-			Spi.qryProduct();
-			break;
-		case 'f':
-			Spi.qryInstrument();
-			break;
-		case 'g':
-//			Spi.insertOrder();
-			break;
-		default:
-			cmd = 'X';
-			break;
+			case '1':	// 查询资金
+				Spi.qryTradingAccount();
+				break;
+			case '2': 	// 查询订单
+				Spi.qryOrder();
+				break;
+			case '3': 	// 查询成交
+				Spi.qryTrade();
+				break;
+			case '4': // 查询持仓
+				Spi.qryInvestorPositionField();
+				break;
+			case '5': // 查询结算单
+				Spi.ReqQrySettlementInfo();
+				break;
+			case '6': 
+	//			bSucc = trader->entrustLmt(false);
+				break;
+			case '7': 
+				Spi.insertOrder();
+				break;
+			case '8': 
+				Spi.CancelOrder();
+				break;
+			case '9':
+	//			bSucc = trader->entrustLmt(true);
+				break;
+			case '0': 
+				break;
+			case 'a':
+				Spi.qryInvestorPositionDetail();
+				break;
+			case 'b':
+				Spi.qryDepthMarketdata();
+				break;
+			case 'c':
+				Spi.qryExchange();
+				break;
+			case 'd': // 查询保证金率
+				Spi.qryExchangeMarginRate();
+				break;
+			case 'e':
+				Spi.qryProduct();
+				break;
+			case 'f':
+				Spi.qryInstrument();
+				break;
+			case 'g': // 查询投资者
+				Spi.qryInvestor();
+				break;
+			case 'h': // 查询交易编码
+				Spi.qryTradingCode();
+				break;
+			case 'i': // 查询转帐银行
+				Spi.qryTransferBank();
+				break;
+			case 'j': // 查询期权交易成本
+				Spi.qryOptionInstrTradeCost();
+				break;
+			case 'k': // 查询询价
+				Spi.qryForQuote();
+				break;
+			case 'l': // 查询经纪公司交易算法
+				Spi.qryBrokerTradingAlgos();
+				break;
+			default:
+				cmd = 'X';
+				break;
 		}
 
-	if(cmd == '0')
+		if(cmd == '0')
 			break;
 	}
-
 
 	// 查询投资者手续费率
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));

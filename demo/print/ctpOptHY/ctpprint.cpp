@@ -403,7 +403,7 @@ public:
 	};
 
 	// 下单
-	int OrderInsert(const char* ExchangeID, const char* InstrumentID, TThostFtdcDirectionType Direction, TThostFtdcOffsetFlagType OffsetFlag, double Price, unsigned int Qty)
+	int OrderInsert(const char* ExchangeID, const char* InstrumentID, TThostFtdcDirectionType Direction, TThostFtdcOffsetFlagType OffsetFlag, double Price, unsigned int Qty, TThostFtdcHedgeFlagType HedgeFlag, TThostFtdcOrderPriceTypeType OrderPriceType)
 	{
 		CThostFtdcInputOrderField Req;
 
@@ -423,10 +423,10 @@ public:
 
 		Req.Direction = Direction;
 		Req.CombOffsetFlag[0] = OffsetFlag;
-		Req.CombHedgeFlag[0] = THOST_FTDC_HF_Speculation;
+		Req.CombHedgeFlag[0] = HedgeFlag;	// THOST_FTDC_HF_Speculation;
 		Req.VolumeTotalOriginal = Qty;
 		Req.LimitPrice = Price;
-		Req.OrderPriceType = THOST_FTDC_OPT_LimitPrice;
+		Req.OrderPriceType = OrderPriceType; // THOST_FTDC_OPT_LimitPrice;
 
 #ifdef _MSC_VER
 		sprintf_s(Req.OrderRef, "%d", m_nOrderRef++);
@@ -460,15 +460,19 @@ public:
 
 		TThostFtdcDirectionType direct;
 		TThostFtdcOffsetFlagType type;
+		std::string ExchangeID;
 		std::string InstrumentID;
 		double price;
+		TThostFtdcHedgeFlagType HedgeFlag;
+		TThostFtdcOrderPriceTypeType OrderPriceType;
 
-		std::cout << "请输入: InstrumentID; 买卖方向:0-买,1-卖; 开平方向:0-开仓,1-平仓,2-强平,3-平今,4-平昨,5-强减; 价格:价格(0.0001为最小单位)" << std::endl;
-		std::cin >> InstrumentID >> direct >> type >> price;
-		OrderInsert("SSE", InstrumentID.c_str(), direct, type, price, 1);
-		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Open, price, 1);
-		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, price, 1);
-		//      Spi.OrderInsert("SSE", "10006150", THOST_FTDC_D_Sell, THOST_FTDC_OF_Close, price, 1);
+		std::cout << "请输入: ExchangeID; InstrumentID;" << std::endl;
+		std::cout << "买卖方向:0-买,1-卖; 开平方向:0-开仓,1-平仓,2-强平,3-平今,4-平昨,5-强减;" << std::endl;
+		std::cout << "价格:价格(0.0001为最小单位)； " << "投机套保标志:1-投机,2-套利,3-套保,4-备兑，5-做市商;" << std::endl;
+		std::cout << "报单价格条件:1-任意价,2-限价,3-最优价,4-最新价,5-最新价浮动上浮1个ticks,6-最新价浮动上浮2个ticks," << std::endl;
+		std::cout << "	7-最新价浮动上浮3个ticks,8-最新价浮动下浮1个ticks,9-最新价浮动下浮2个ticks,10-最新价浮动下浮3个ticks;" << std::endl;
+		std::cin >> ExchangeID >> InstrumentID >> direct >> type >> price >> HedgeFlag >> OrderPriceType;
+		OrderInsert(ExchangeID.c_str(), InstrumentID.c_str(), direct, type, price, 1, HedgeFlag, OrderPriceType);
 	}
 
 	// 下单应答
@@ -680,9 +684,8 @@ public:
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 		CThostFtdcQryDepthMarketDataField QryDepthMarketData = { 0 };
-		std::cout << "请输入合约ID: " << std::endl;
-		std::cin >> QryDepthMarketData.InstrumentID;
-		strncpy(QryDepthMarketData.ExchangeID, "SSE", sizeof("SSE"));
+		std::cout << "请输入交易所代码, 合约ID: " << std::endl;
+		std::cin >> QryDepthMarketData.ExchangeID >> QryDepthMarketData.InstrumentID;
 		m_pUserApi->ReqQryDepthMarketData(&QryDepthMarketData, 0);
 		_semaphore.wait();
 	}
@@ -1134,8 +1137,8 @@ int main(int argc, char* argv[])
 		std::cout << "3. 查询成交	";
 		std::cout << "4. 查询持仓	";
 		std::cout << "5. 查询结算单	";
-		std::cout << "6. 限价委托\r\n";
-		std::cout << "7. 市价委托	";
+		std::cout << "6. 下单委托\r\n";
+		std::cout << "7. NULL	";
 		std::cout << "8. 撤单		";
 		std::cout << "9. 净头寸交易	";
 		std::cout << "a. 查询持仓明细 ";
@@ -1171,10 +1174,7 @@ int main(int argc, char* argv[])
 			case '5': // 查询结算单
 				Spi.ReqQrySettlementInfo();
 				break;
-			case '6': 
-	//			bSucc = trader->entrustLmt(false);
-				break;
-			case '7': 
+			case '6': // 下单委托
 				Spi.insertOrder();
 				break;
 			case '8': 
@@ -1188,7 +1188,7 @@ int main(int argc, char* argv[])
 			case 'a':
 				Spi.qryInvestorPositionDetail();
 				break;
-			case 'b':
+			case 'b': // 查询行情
 				Spi.qryDepthMarketdata();
 				break;
 			case 'c':

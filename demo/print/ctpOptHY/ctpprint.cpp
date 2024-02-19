@@ -1101,8 +1101,8 @@ public:
 
 void display_usage()
 {
-	printf("usage:ctpprint host broker user password appid authcode\n");
-	printf("example:ctpprint tcp://180.168.146.187:10130 9999 000001 888888 simnow_client_test 0000000000000000\n");
+	printf("usage:ctpTrader host broker user password appid authcode\n");
+	printf("example:ctTrader tcp://118.26.194.228:41205 8888 333306255 888888 client_RanChaoY_1.0 0000000000000000\n");
 }
 
 #pragma execution_character_set("utf-8")

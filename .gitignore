@@ -5,6 +5,7 @@ demo/print/ctpOptHY/Private.con
 demo/print/ctpOptHY/Public.con
 demo/print/ctpOptHY/QueryRsp.con
 demo/print/ctpOptHY/TradingDay.con
+demo/print/ctpOptHY/ctpTrader
 
 .vs
 

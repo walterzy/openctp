@@ -468,7 +468,7 @@ public:
 
 		std::cout << "请输入: ExchangeID; InstrumentID;" << std::endl;
 		std::cout << "买卖方向:0-买,1-卖; 开平方向:0-开仓,1-平仓,2-强平,3-平今,4-平昨,5-强减;" << std::endl;
-		std::cout << "价格:价格(0.0001为最小单位)； " << "投机套保标志:1-投机,2-套利,3-套保,4-备兑，5-做市商;" << std::endl;
+		std::cout << "价格:价格(0.0001为最小单位); " << "投机套保标志:1-投机,2-套利,3-套保,4-备兑,5-做市商;" << std::endl;
 		std::cout << "报单价格条件:1-任意价,2-限价,3-最优价,4-最新价,5-最新价浮动上浮1个ticks,6-最新价浮动上浮2个ticks," << std::endl;
 		std::cout << "	7-最新价浮动上浮3个ticks,8-最新价浮动下浮1个ticks,9-最新价浮动下浮2个ticks,10-最新价浮动下浮3个ticks;" << std::endl;
 		std::cin >> ExchangeID >> InstrumentID >> direct >> type >> price >> HedgeFlag >> OrderPriceType;

@@ -465,14 +465,17 @@ public:
 		double price;
 		TThostFtdcHedgeFlagType HedgeFlag;
 		TThostFtdcOrderPriceTypeType OrderPriceType;
+		unsigned int Qty;
 
 		std::cout << "请输入: ExchangeID; InstrumentID;" << std::endl;
 		std::cout << "买卖方向:0-买,1-卖; 开平方向:0-开仓,1-平仓,2-强平,3-平今,4-平昨,5-强减;" << std::endl;
 		std::cout << "价格:价格(0.0001为最小单位); " << "投机套保标志:1-投机,2-套利,3-套保,4-备兑,5-做市商;" << std::endl;
 		std::cout << "报单价格条件:1-任意价,2-限价,3-最优价,4-最新价,5-最新价浮动上浮1个ticks,6-最新价浮动上浮2个ticks," << std::endl;
 		std::cout << "	7-最新价浮动上浮3个ticks,8-最新价浮动下浮1个ticks,9-最新价浮动下浮2个ticks,10-最新价浮动下浮3个ticks;" << std::endl;
-		std::cin >> ExchangeID >> InstrumentID >> direct >> type >> price >> HedgeFlag >> OrderPriceType;
-		OrderInsert(ExchangeID.c_str(), InstrumentID.c_str(), direct, type, price, 1, HedgeFlag, OrderPriceType);
+		std::cout << "数量:数量(1为最小单位);" << std::endl;
+		std::cin >> ExchangeID >> InstrumentID >> direct >> type >> price >> HedgeFlag >> OrderPriceType >> Qty;
+		
+		OrderInsert(ExchangeID.c_str(), InstrumentID.c_str(), direct, type, price, Qty, HedgeFlag, OrderPriceType);
 	}
 
 	// 下单应答
@@ -488,10 +491,10 @@ public:
 	// 撤单
 	void CancelOrder()
 	{
-		std::string InstrumentID, OrderSysID;
-		std::cout << "请输入: InstrumentID; OrderSysID" << std::endl;
-		std::cin >> InstrumentID >> OrderSysID;
-		OrderCancel("SSE", InstrumentID.c_str(), OrderSysID.c_str());
+		std::string ExchangeID,InstrumentID, OrderSysID;
+		std::cout << "请输入: ExchangeID, InstrumentID, OrderSysID" << std::endl;
+		std::cin >> ExchangeID >> InstrumentID >> OrderSysID;
+		OrderCancel(ExchangeID.c_str(), InstrumentID.c_str(), OrderSysID.c_str());
 	}
 
 	int OrderCancel(const char* ExchangeID, const char* InstrumentID, const char* OrderSysID)
@@ -503,13 +506,13 @@ public:
 #ifdef _MSC_VER
 		strncpy_s(Req.BrokerID, m_broker.c_str(), sizeof(Req.BrokerID) - 1);
 		strncpy_s(Req.InvestorID, m_user.c_str(), sizeof(Req.InvestorID) - 1);
-		strncpy_s(Req.InstrumentID, InstrumentID, sizeof(Req.InstrumentID) - 1);
+//		strncpy_s(Req.InstrumentID, InstrumentID, sizeof(Req.InstrumentID) - 1);
 		strncpy_s(Req.ExchangeID, ExchangeID, sizeof(Req.ExchangeID) - 1);
 		strncpy_s(Req.OrderSysID, OrderSysID, sizeof(Req.OrderSysID) - 1);
 #else
 		strncpy(Req.BrokerID, m_broker.c_str(), sizeof(Req.BrokerID) - 1);
 		strncpy(Req.InvestorID, m_user.c_str(), sizeof(Req.InvestorID) - 1);
-		strncpy(Req.InstrumentID, InstrumentID, sizeof(Req.InstrumentID) - 1);
+//		strncpy(Req.InstrumentID, InstrumentID, sizeof(Req.InstrumentID) - 1);
 		strncpy(Req.ExchangeID, ExchangeID, sizeof(Req.ExchangeID) - 1);
 		strncpy(Req.OrderSysID, OrderSysID, sizeof(Req.OrderSysID) - 1);
 #endif
@@ -518,6 +521,7 @@ public:
 		//Req.SessionID = 1;
 		//strncpy_s(Req.OrderRef, "111", sizeof(Req.OrderRef) - 1);
 		Req.ActionFlag = THOST_FTDC_AF_Delete;
+		Req.OrderActionRef = 0;
 
 		return m_pUserApi->ReqOrderAction(&Req, 0);
 	}

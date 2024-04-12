@@ -16,7 +16,7 @@
 #include "./CTP/ThostFtdcTraderApi.h"
 
 #ifdef _MSC_VER
-#pragma comment (lib, "./CTP/soptthosttraderapi_se.lib")
+#pragma comment (lib, "./CTP/thosttraderapi_se.lib")
 #pragma warning(disable : 4996)
 #endif
 
@@ -509,7 +509,7 @@ public:
 		strncpy_s(Req.InvestorID, m_user.c_str(), sizeof(Req.InvestorID) - 1);
 		strncpy_s(Req.InstrumentID, InstrumentID, sizeof(Req.InstrumentID) - 1);
 		strncpy_s(Req.ExchangeID, ExchangeID, sizeof(Req.ExchangeID) - 1);
-		strncpy_s(Req.OrderSysID, OrderSysID, sizeof(Req.OrderSysID) - 1);
+		sprintf(Req.OrderSysID, "%12d", OrderSysID);
 #else
 		strncpy(Req.BrokerID, m_broker.c_str(), sizeof(Req.BrokerID) - 1);
 		strncpy(Req.InvestorID, m_user.c_str(), sizeof(Req.InvestorID) - 1);
@@ -1236,7 +1236,7 @@ int main(int argc, char* argv[])
 
 	// 查询投资者手续费率
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("查询投资者手续费率 ...\n");
+	std::cout << "查询投资者手续费率 ...\n";
 	CThostFtdcQryInstrumentCommissionRateField QryInstrumentCommissionRate = { 0 };
 	strncpy(QryInstrumentCommissionRate.BrokerID, broker.c_str(), sizeof(QryInstrumentCommissionRate.BrokerID) - 1);
 	strncpy(QryInstrumentCommissionRate.InvestorID, user.c_str(), sizeof(QryInstrumentCommissionRate.InvestorID) - 1);
@@ -1247,7 +1247,7 @@ int main(int argc, char* argv[])
 
 	// 查询投资者保证金率
 	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	printf("查询投资者保证金率 ...\n");
+	std::cout << "查询投资者保证金率 ...\n";
 	CThostFtdcQryInstrumentMarginRateField QryInstrumentMarginRate = { 0 };
 	strncpy(QryInstrumentCommissionRate.BrokerID, broker.c_str(), sizeof(QryInstrumentCommissionRate.BrokerID) - 1);
 	strncpy(QryInstrumentCommissionRate.InvestorID, user.c_str(), sizeof(QryInstrumentCommissionRate.InvestorID) - 1);

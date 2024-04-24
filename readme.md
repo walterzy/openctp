@@ -2,32 +2,33 @@
 
 [openctp](https://github.com/openctp/openctp)是一个以CTP生态为基础的平台，既提供了华鑫证券奇点、中泰证券XTP、东方财富EMT、东方证券OST等柜台的[CTPAPI](https://github.com/openctp/openctp)兼容接口，也提供了一套与上期技术SimNow模拟环境类似的模拟环境，也支持CTPAPI接口，不仅提供国内各期货交易所的期货与期权品种模拟交易，还提供了A股的股票、基金、债券以及股票期权模拟交易，也支持港股、美股等市场模拟交易。
 
-openctp还提供了CTPAPI的Python接口，开发了CTP交易客户端[ViTrader](https://github.com/openctp/ViTrader)并开放了源码，还开发了图形界面的交易客户端[TickTrader](http://www.openctp.cn/download.html),都支持openctp、CTP、CTP股票期权、中泰XTP、华鑫奇点股票与股票期权等柜台。
+openctp还提供了[CTPAPI的Python接口](https://github.com/openctp/openctp-ctp-python)以及[CTP股票期权API的Python接口](https://github.com/openctp/openctp-ctpopt-python)，开源了CTP命令行交易客户端[ViTrader](https://github.com/openctp/ViTrader)，还有图形界面交易客户端[TickTrader](http://www.openctp.cn/download.html)，以及Mini版的[MiniTrader](https://github.com/openctp/MiniTrader)都支持openctp、CTP、CTP股票期权、中泰XTP、华鑫奇点股票与股票期权等柜台，[MiniTrader](https://github.com/openctp/MiniTrader)采用openctp的CTPAPI兼容接口技术支持了CTP、TTS、华鑫证券股票与股票期权等柜台，无需自己再替换dll。
 
 openctp还做了一套websocket接口的CTP服务，[webctp](https://github.com/openctp/webctp)，将CTP的服务以websocket+json形式对外提供服务，也开放了源码。
 
 openctp还提供了CTP、华鑫奇点、中泰XTP等柜台接口的开发咨询和培训以及柜台系统等的开发培训服务。
 
-openctp还有更多的产品和服务在研发中。。。
-
 ![ctp开放平台全景图](https://user-images.githubusercontent.com/83346523/148639077-6c328032-b75a-4979-be8d-157de60cf3b4.jpg)
 
 # 目录结构：
-- ctp2TTS：openctp模拟环境CTPAPI兼容接口。
-- ctpopt2TTS:openctp模拟环境CTP股票期权兼容接口。
+- [ctp2TTS](https://github.com/openctp/openctp/tree/master/ctp2TTS)：openctp模拟环境CTPAPI兼容接口。
+- [ctpopt2TTS](https://github.com/openctp/openctp/tree/master/ctpopt2TTS)：openctp模拟环境CTP股票期权兼容接口。
 - ctp2XTP：中泰证券XTP柜台CTPAPI兼容接口（含源码）。
-- ctp2STP：华鑫证券奇点股票柜台CTPAPI兼容接口（含源码）。
+- ctp2STP：华鑫证券TORA奇点股票柜台CTPAPI兼容接口（含源码）。
 - ctp2EMT：东方财富EMT柜台CTPAPI兼容接口（含源码）。
-- ctp2STPOPT：华鑫证券奇点股票期权柜台CTPAPI兼容接口（含源码）。
+- ctp2STPOPT：华鑫证券TORA奇点股票期权柜台CTPAPI兼容接口。
 - ctp2OST：东方证券OST柜台CTPAPI兼容接口。
-- ctp2IB：盈透证券CTPAPI兼容接口。
+- ctp2YD：易达柜台CTPAPI兼容接口。（易达官方提供）
+- ctp2IB：盈透证券TWS平台CTPAPI兼容接口。
+- ctp2QDP：量投QDP柜台CTPAPI兼容接口。
+- ctp2TAP：易盛TAP启明星柜台CTPAPI兼容接口。
 - ctp2QQ：腾讯行情CTPAPI兼容接口（含源码）。
 - ctp2Sina：新浪行情CTPAPI兼容接口（含源码）。
 - demo：CTPAPI开发相关的demo及工具源码。
 - tools：生产力工具。
 - docs：开发文档及行业资料。
-- ctpapi-python：CTPAPI的Python接口（openctp官方开发）。
-- ctpapi-opt-python：CTP股票期权API的Python接口（openctp官方开发）。
+- [ctpapi-python](https://github.com/openctp/openctp-ctp-python)：CTPAPI的Python接口（openctp官方开发）。
+- [ctpapi-opt-python](https://github.com/openctp/openctp-ctpopt-python)：CTP股票期权API的Python接口（openctp官方开发）。
 - ctpapi-java：CTPAPI的Java接口。
 - ctpapi-go：CTPAPI的Go接口。
 - ctpapi-c：CTPAPI的C语言接口。
@@ -47,14 +48,15 @@ openctp模拟环境有三套，一套7x24环境，不间断循环播放最新交
 - CME等外盘期货品种（即将上线）
 
 ## 相对Simnow优点：
+- 提供5档行情
+- 支持部分成交、部分撤消。
 - 支持负价交易（负价合约的合约号为MINUS，仅在7x24环境提供）。
-- 支持部分撮合、部分撤消。
 - 提供各交易所全商品模拟交易。
-- 关注“CTP开放平台”公众号即可自动得到一个7x24测试账号及仿真账号，回复“注册仿真”可再注册多个仿真账号，回复“注册24”可再注册多个7x24测试账号，且立即生效。
+- 关注“openctp”公众号即可自动得到一个7x24测试账号及仿真账号，无需提供手机号等隐私信息，回复“注册仿真”可再注册多个仿真账号，回复“注册24”可再注册多个7x24测试账号，且立即生效。
 - QQ群127235179有问必答，解答CTP及各交易相关问题。
-- 真正的7x24，1秒钟都不停。
+- openctp的7x24环境是真正的7x24，1秒钟都不停，完全独立的环境，与仿真环境没有任何关系，持仓、资金等交易数据不会被重置。
 - 除国内期货及期权外，还提供A股股票、债券、基金、股票期权、港美股以及外盘期货等全球市场模拟交易。
-- 支持市价单。
+- 支持市价单、FAK/FOK单。
 - 支持CTP股票期权接口。
 
 ## 撮合方式（同时支持做市与撮合）：
@@ -83,28 +85,21 @@ openctp模拟环境不检查这几个字段，3项均可不填。
 - 交易前置 - tcp://42.192.226.242:20002
 - 行情前置 - 无（期货实盘行情前置见[CTP柜台实盘环境监控](http://www.openctp.cn/env.html)）
 # openctp监控平台
-openctp提供了一个集中监控SimNow、华鑫N视界、中泰XTP、东财EMT等模拟环境的监控平台，当然也包括openctp自己的模拟环境，有几个环境，有没开着，一眼就知道了，点这里看看：[openctp模拟环境监控](http://www.openctp.cn)。
+openctp提供了一个集中监控SimNow、华鑫N视界、中泰XTP、东财EMT等模拟环境的监控平台，当然也包括openctp自己的模拟环境，有几个环境，有没开着，一眼就知道了，点这里看看：[CTP接口模拟环境监控](http://www.openctp.cn)。
 
 openctp还提供了对几十家主流期货公司CTP柜台实盘环境的监控，并且标出了提供上期所免费5档行情支持的期货公司，点这里一看就知道了：[CTP柜台实盘环境监控](http://www.openctp.cn/env.html)。
 
-![613dc093f916d1bf0764e5365f202ff](https://user-images.githubusercontent.com/83346523/148802378-2c9b3d3f-1959-4aab-851a-cf55666806d8.png)
-
-
-# **CTP程序接入股票柜台：**
-除提供开放平台模拟交易外，还提供使用CTP接口接入证券柜台的能力，可以进行股票、债券、逆回购、新股申购、融资融券、ETF期权等交易，同样使用CTP接口将证券柜台接口封装成跟CTP完全兼容的动态库，使得CTP程序无需任何修改，只更换CTP动态库即可接入证券柜台，目前已完成华鑫证券（股票、债券、基金、股票期权）、中泰证券（股票、债券、基金）股票交易接入功能，同样发布了目前在用的四个CTPAPI版本，分别提供win32、win64、linux三套动态库。
-
-股票接入方式采用**直连证券柜台**方式，不经过开放平台处理，因此需要向证券公司申请模拟账号。**如需实盘接入股票柜台（个人投资者也可接入）或实盘交易请在openctp公众号回复咨询两个字。**
-- **华鑫证券**，模拟账号申请地址：http://www.n-sight.com.cn
-- **中泰证券**，模拟账号申请地址：https://xtp.zts.com.cn
-
-**股票柜台接口与接入问题请加QQ群 127235179 咨询。**
+<img width="662" alt="monitor" src="https://github.com/openctp/openctp/assets/83346523/a28557e1-d9df-4ffa-9aef-959415c06714">
 
 # **CTPAPI及各柜台CTPAPI兼容接口下载：**
 [CTP、TTS、XTP、TORA等柜台接口下载](http://www.openctp.cn/download.html)
 
 # **已官方支持TTS通道（CTP开放平台）的产品：**
-- [TickTrader（openctp出品的交易客户端，支持全球市场交易，支持TTS、CTP、华鑫证券等柜台）](http://www.openctp.cn/download.html)
+- [TickTrader（openctp研发的交易客户端，支持点价下单，支持全球市场交易，支持CTP、CTP股票期权、TTS、华鑫证券股票与股票期权等柜台）](http://www.openctp.cn/download.html)
 ![image](https://github.com/openctp/openctp/assets/83346523/bc458496-172b-4cb3-bc70-dbde12c0bc17)
+
+- [MiniTrader（openctp研发的CTP交易客户端，支持点价下单，支持CTP、TTS、华鑫证券股票与股票期权等柜台）](http://www.openctp.cn/download.html)
+<img width="698" alt="MiniTrader" src="https://github.com/openctp/openctp/assets/83346523/207d2dbd-8baa-4c06-b421-78faae74484d">
 
 - [vn.py（知名Python量化交易客户端，支持全球市场交易）](https://www.vnpy.com/)
 <img src="https://user-images.githubusercontent.com/83346523/136988918-1159fc88-073e-4b6f-a8d6-3f33991e8a72.png" alt="vnpy" width="700" height="400" />
@@ -112,7 +107,7 @@ openctp还提供了对几十家主流期货公司CTP柜台实盘环境的监控�
 - [MT5CTP（MT5软件，已支持国内A股、期货及期权交易，QQ群：967352413，备注openctp。）](https://www.zhihu.com/people/mt5ctp)
 <img src="https://user-images.githubusercontent.com/83346523/136989596-b12d91e8-48a0-4b26-bcaf-fdfca52d962c.png" alt="mt5ctp" width="700" height="400" />
 
-- [TextTrader（CTP开源命令行交易终端，支持A股、期货及期权交易）](https://github.com/openctp/TextTrader)
+- [ViTrader（CTP开源命令行交易终端，支持A股、期货及期权交易）](https://github.com/openctp/ViTrader)
 <img src="https://user-images.githubusercontent.com/83346523/136989754-1f0130e6-5d75-427f-bbf3-7ed084b6eae1.png" alt="texttrader" width="700" height="400" />
 
 - [WonderTrader（一个基于C++核心模块的，适应全市场全品种交易的，高效率、高可用的量化交易开发框架，QQ群：610730738，备注openctp。）](https://www.zhihu.com/column/c_1338797723131740161)
@@ -132,9 +127,6 @@ openctp还提供了对几十家主流期货公司CTP柜台实盘环境的监控�
 # **粉丝交流QQ群：127235179**
 
 <img src="https://user-images.githubusercontent.com/83346523/225706658-5dde7246-d837-4d13-9207-aea48b688184.png" alt="QQ群二维码" width="300" height="500" />
-
-# openctp咨询服务
-基于openctp积累的深厚的技术，我们为CTP、华鑫奇点、中泰XTP等柜台接入与开发提供咨询服务，有接口及实盘交易问题均可咨询，只需1000元，永久服务。
 
 # openctp培训服务
 openctp提供证券期货交易开发方面的技术培训，也提供行业无关的基础技术培训，openctp的培训偏向于就业方向，比如想去私募或者科技公司从事量化或者柜台系统开发的比较适合，当然如果想自己学习一些技术帮助自己更好地做交易也是可以的。openctp的培训是迭代式的，会不断更新，补充更多的内容，同学可在相应课程的群内永久交流。所有课程的每节课在B站上都有试看视频，报培训只需要在openctp的公众号回复培训两个字即可获取联系方式。

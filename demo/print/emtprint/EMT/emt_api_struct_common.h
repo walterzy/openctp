@@ -24,21 +24,20 @@ typedef unsigned long long uint64_t;
 
 #pragma pack(1)
 
-///错误信息的字符串长度
-#define EMT_ERR_MSG_LEN  124
 ///响应信息
-typedef struct EMTRspInfoStruct_
+struct EMTRI
 {
-	///错误代码
-	int32_t	error_id;
-	///错误信息
-	char	error_msg[EMT_ERR_MSG_LEN];
+    ///错误代码
+    int32_t    error_id;
+    ///错误信息
+    char    error_msg[EMT_ERR_MSG_LEN];
 
-	EMTRspInfoStruct_() {
-		error_id = 0;
+    EMTRI() 
+    {
+        error_id = 0;
         error_msg[0] = '\0';
-	}
-} EMTRI;
+    }
+};
 
 #pragma pack()
 

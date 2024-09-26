@@ -16,6 +16,7 @@ xxxprint系列工具已发布CTP、XTP、恒生等8个柜台版本，只是查�
 - ydprint - 易达极速柜台
 - tapprint - 易盛TAP启明星柜台
 - atpprint - 华锐极速柜台
+- qdpprint - 量投QDP极速柜台
 
 **[openctp](http://www.openctp.cn)**的TTS系统已支持A股、国内期货及部分港美股合约模拟交易，也提供了通过仿CTPAPI直连华鑫证券、中泰证券（行情接口已发布，交易接口本周发布）柜台的能力，为了便于开发者快速了解各柜台接口的交互逻辑，发布了三个demo程序的源码，都是交易接口的demo，行情接口由于比较简单，所以就不针对行情接口写demo了。
 

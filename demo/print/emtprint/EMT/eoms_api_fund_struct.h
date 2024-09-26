@@ -3,30 +3,26 @@
 ///@file eoms_api_fund_struct.h
 ///@brief 定义资金划拨相关结构体类型
 /////////////////////////////////////////////////////////////////////////
-#ifndef XOMS_API_FUND_STRUCT_H_
-#define XOMS_API_FUND_STRUCT_H_
+#ifndef EOMS_API_FUND_STRUCT_H_
+#define EOMS_API_FUND_STRUCT_H_
 
-#include "emt_api_data_type.h"
 #include "eoms_api_struct.h"
-#include "emt_api_struct_common.h"
 
 #pragma pack(1)
 
-/// 用户资金账户的密码字符串长度
-#define EMT_ACCOUNT_PASSWORD_LEN 64
 /////////////////////////////////////////////////////////////////////////
 ///两地分仓信用额度划拨请求
 /////////////////////////////////////////////////////////////////////////
 struct EMTQuotaTransferReq
 {
     ///资金内转编号，无需用户填写，类似于emt_id
-    uint64_t	serial_id;
-	///资金账户代码
-	char        fund_account[EMT_ACCOUNT_NAME_LEN];
-	///金额
-	double	    amount;
-	///内转类型
-	EMT_QUOTA_TRANSFER_TYPE	transfer_type;
+    uint64_t    serial_id;
+    ///资金账户代码
+    char        fund_account[EMT_ACCOUNT_NAME_LEN];
+    ///金额
+    double      amount;
+    ///内转类型
+    EMT_QUOTA_TRANSFER_TYPE    transfer_type;
 };
 
 /////////////////////////////////////////////////////////////////////////
@@ -35,15 +31,15 @@ struct EMTQuotaTransferReq
 struct EMTFundTransferReq
 {
     ///资金内转编号，无需用户填写，类似于emt_id
-    uint64_t	serial_id;
-	///资金账户代码
-	char        fund_account[EMT_ACCOUNT_NAME_LEN];
-	///资金账户密码
-	char	    password[EMT_ACCOUNT_PASSWORD_LEN];
-	///金额
-	double	    amount;
-	///内转类型
-	EMT_FUND_TRANSFER_TYPE	transfer_type;
+    uint64_t    serial_id;
+    ///资金账户代码
+    char        fund_account[EMT_ACCOUNT_NAME_LEN];
+    ///资金账户密码
+    char        password[EMT_ACCOUNT_PASSWORD_LEN];
+    ///金额
+    double      amount;
+    ///内转类型
+    EMT_FUND_TRANSFER_TYPE    transfer_type;
 
 };
 

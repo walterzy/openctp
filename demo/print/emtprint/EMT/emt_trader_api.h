@@ -38,11 +38,14 @@ namespace EMT {
         {
         public:
 
-            ///当客户端的某个连接与交易后台通信连接断开时，该方法被调用。
+            ///连接成功通知
+            ///@remark 当客户端与交易后台成功建立连接时，该方法被调用；OnConnected接口仅用作连接成功通知，需要快速返回，用户无需在此函数中做特殊处理
+            virtual void OnConnected() {};
+
+            ///断线通知
             ///@param reason 错误原因，请与错误代码表对应
-            ///@param session_id 资金账户对应的session_id，登录时得到
-            ///@remark 用户主动调用logout导致的断线，不会触发此函数。api不会自动重连，当断线发生时，请用户自行选择后续操作，可以在此函数中调用Login重新登录，并更新session_id，此时用户收到的数据跟断线之前是连续的
-            virtual void OnDisconnected(uint64_t session_id, int reason) {};
+            ///@remark 当客户端与交易后台的通信连接断开时，该方法被调用；api内部支持自动重连机制，OnDisconnected接口仅用做断线通知，需要快速返回，用户无需在此函数中做特殊处理
+            virtual void OnDisconnected(int reason) {};
 
             ///错误应答
             ///@param error_info 当服务器响应发生错误时的具体的错误代码和错误信息,当error_info为空，或者error_info.error_id为0时，表明没有错误
@@ -214,12 +217,12 @@ namespace EMT {
             ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
             virtual void OnCreditCashRepay(EMTCrdCashRepayRsp *cash_repay_info, EMTRI *error_info, uint64_t session_id) {};
 
-            ///融资融券业务中现金还息的响应
-            ///@param cash_repay_info 现金还息通知的具体信息，用户可以通过cash_repay_info.emt_id来管理订单，通过GetClientIDByEMTID() == client_id来过滤自己的订单。
-            ///@param error_info 现金还息发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
+            ///融资融券业务中现金偿还指定负债的响应
+            ///@param cash_repay_rsp 现金偿还指定负债通知的响应信息，用户可以通过cash_repay_rsp.order_emt_id来管理订单，通过GetClientIDByEMTID() == client_id来过滤自己的订单。
+            ///@param error_info 现金偿还指定负债发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
             ///@param session_id 资金账户对应的session_id，登录时得到
             ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
-            virtual void OnCreditCashRepayDebtInterestFee(EMTCrdCashRepayDebtInterestFeeRsp *cash_repay_info, EMTRI *error_info, uint64_t session_id) {};
+            virtual void OnCreditCashRepaySpecifiedDebt(EMTCrdRepaySpecifiedDebtRsp *cash_repay_rsp, EMTRI *error_info, uint64_t session_id) {};
 
             ///请求查询融资融券业务中的现金直接还款报单的响应
             ///@param cash_repay_info 查询到的某一笔现金直接还款通知的具体信息
@@ -345,6 +348,13 @@ namespace EMT {
             ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
             virtual void OnQueryCreditPositionExtraInfo(EMTCrdPositionExtraInfo *fund_info, EMTRI *error_info, int request_id, bool is_last, uint64_t session_id) {};
 
+            ///期权行权/组合行权申报报单通知
+            ///@param order_info 订单响应具体信息，用户可以通过order_info.order_emt_id来管理订单，通过GetClientIDByEMTID() == client_id来过滤自己的订单，order_info.qty_left字段在订单为未成交、部成、全成、废单状态时，表示此订单还没有成交的数量，在部撤、全撤状态时，表示此订单被撤的数量。order_info.order_cancel_emt_id为其所对应的撤单ID，不为0时表示此单被撤成功
+            ///@param error_info 订单被拒绝或者发生错误时错误代码和错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@remark 每次订单状态更新时，都会被调用，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线，在订单未成交、全部成交、全部撤单、部分撤单、已拒绝这些状态时会有响应，对于部分成交的情况，请由订单的成交回报来自行确认。所有登录了此用户的客户端都将收到此用户的订单响应
+            virtual void OnOptionExerciseOrderEvent(EMTOptionExerciseOrderInfo *order_info, EMTRI *error_info, uint64_t session_id) {};
+
             ///期权组合策略报单通知
             ///@param order_info 订单响应具体信息，用户可以通过order_info.order_emt_id来管理订单，通过GetClientIDByEMTID() == client_id来过滤自己的订单，order_info.qty_left字段在订单为未成交、部成、全成、废单状态时，表示此订单还没有成交的数量，在部撤、全撤状态时，表示此订单被撤的数量。order_info.order_cancel_emt_id为其所对应的撤单ID，不为0时表示此单被撤成功
             ///@param error_info 订单被拒绝或者发生错误时错误代码和错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
@@ -357,13 +367,6 @@ namespace EMT {
             ///@param session_id 资金账户对应的session_id，登录时得到
             ///@remark 订单有成交发生的时候，会被调用，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线。所有登录了此用户的客户端都将收到此用户的成交回报。相关订单为部成状态，需要用户通过成交回报的成交数量来确定，OnOrderEvent()不会推送部成状态。
             virtual void OnOptionCombinedTradeEvent(EMTOptCombTradeReport *trade_info, uint64_t session_id) {};
-
-            ///期权组合策略撤单出错响应
-            ///@param cancel_info 撤单具体信息，包括撤单的order_cancel_emt_id和待撤单的order_emt_id
-            ///@param error_info 撤单被拒绝或者发生错误时错误代码和错误信息，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线，当error_info为空，或者error_info.error_id为0时，表明没有错误
-            ///@param session_id 资金账户对应的session_id，登录时得到
-            ///@remark 此响应只会在撤单发生错误时被回调
-            virtual void OnCancelOptionCombinedOrderError(EMTOptCombOrderCancelInfo *cancel_info, EMTRI *error_info, uint64_t session_id) {};
 
             ///请求查询期权组合策略报单响应
             ///@param order_info 查询到的一个报单
@@ -457,17 +460,25 @@ namespace EMT {
 
             ///融资融券可担保证券分页查询响应
             ///@param pledge_stk_info 融资融券可担保证券信息，查询发生错误时返回空
-            ///@param error_info 融资融券可担保证券分页查询发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
+            ///@param req_count 请求到的最大数量
+            ///@param query_sequence 分页请求的当前回报数量
+            ///@param query_reference 当前报单信息所对应的查询索引，需要记录下来，在进行下一次分页查询的时候需要用到
             ///@param request_id 此消息响应函数对应的请求ID
+            ///@param is_last 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
             ///@param session_id 资金账户对应的session_id，登录时得到
-            virtual void OnQueryCreditPledgeStkPagination(EMTClientQueryCreditPledgeStkPaginationRsp *pledge_stk_info, EMTRI *error_info, int request_id, uint64_t session_id) {};
+            ///@remark 当query_sequence为0，表明当次查询没有查到任何记录，当is_last为true时，如果query_sequence等于req_count，那么表示还有回报，可以进行下一次分页查询，如果不等，表示所有回报已经查询完毕。一个查询请求可能对应多个响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线。
+            virtual void OnQueryCreditPledgeStkByPage(EMTClientQueryCreditPledgeStkRsp *pledge_stk_info, int64_t req_count, int64_t query_sequence, int64_t query_reference, int request_id, bool is_last, uint64_t session_id) {};
 
             ///融资融券标的证券分页查询响应
             ///@param target_stk_info 融资融券标的证券信息，查询发生错误时返回空
-            ///@param error_info 融资融券标的证券分页查询发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
+            ///@param req_count 请求到的最大数量
+            ///@param query_sequence 分页请求的当前回报数量
+            ///@param query_reference 当前报单信息所对应的查询索引，需要记录下来，在进行下一次分页查询的时候需要用到
             ///@param request_id 此消息响应函数对应的请求ID
+            ///@param is_last 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
             ///@param session_id 资金账户对应的session_id，登录时得到
-            virtual void OnQueryCreditTargetStkPagination(EMTClientQueryCreditTargetStkPaginationRsp *target_stk_info, EMTRI *error_info, int request_id, uint64_t session_id) {};
+            ///@remark 当query_sequence为0，表明当次查询没有查到任何记录，当is_last为true时，如果query_sequence等于req_count，那么表示还有回报，可以进行下一次分页查询，如果不等，表示所有回报已经查询完毕。一个查询请求可能对应多个响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线。
+            virtual void OnQueryCreditTargetStkByPage(EMTClientQueryCreditTargetStkRsp *target_stk_info, int64_t req_count, int64_t query_sequence, int64_t query_reference, int request_id, bool is_last, uint64_t session_id) {};
 
             ///请求查询配股业务信息列表的响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
             ///@param issue_info 查询到的今日配股的一只股票信息
@@ -512,6 +523,61 @@ namespace EMT {
             ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
             virtual void OnQueryYesterdayAsset(EMTQueryYesterdayAssetRsp *yesterday_asset, EMTRI *error_info, int request_id, bool is_last, uint64_t session_id) {};
 
+            ///分页请求查询ETF清单文件响应
+            ///@param etf_info 查询到的一个ETF信息
+            ///@param req_count 请求到的最大数量
+            ///@param rsp_sequence 分页请求的当前回报数量
+            ///@param query_reference 当前信息所对应的查询索引，需要记录下来，在进行下一次分页查询的时候需要用到
+            ///@param request_id 此消息响应函数对应的请求ID
+            ///@param is_last 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@remark 当rsp_sequence为0，表明当次查询没有查到任何记录，当is_last为true时，如果rsp_sequence等于req_count，那么表示还有信息，可以进行下一次分页查询，如果不等，表示所有结果已经查询完毕。一个查询请求可能对应多个响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线。
+            virtual void OnQueryETFByPage(EMTQueryETFBaseRsp *etf_info, int64_t req_count, int64_t rsp_sequence, int64_t query_reference, int request_id, bool is_last, uint64_t session_id){};
+
+            ///分页请求查询标的基础信息响应
+            ///@param security_info 查询到的一个标的信息
+            ///@param req_count 请求到的最大数量
+            ///@param rsp_sequence 分页请求的当前回报数量
+            ///@param query_reference 当前信息所对应的查询索引，需要记录下来，在进行下一次分页查询的时候需要用到
+            ///@param request_id 此消息响应函数对应的请求ID
+            ///@param is_last 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@remark 当rsp_sequence为0，表明当次查询没有查到任何记录，当is_last为true时，如果rsp_sequence等于req_count，那么表示还有报单，可以进行下一次分页查询，如果不等，表示所有报单已经查询完毕。一个查询请求可能对应多个响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线。
+            virtual void OnQuerySecurityByPage(EMTQuerySecurityByPageRsp *security_info, int64_t req_count, int64_t rsp_sequence, int64_t query_reference, int request_id, bool is_last, uint64_t session_id){};
+
+            ///查询港股通参考汇率信息响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
+            ///@param hk_connect_exchage_rate_info 港股通参考汇率信息
+            ///@param error_info 查询昨日资产发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
+            ///@param request_id 此消息响应函数对应的请求ID
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
+            virtual void OnQueryHKConnectIndicativeExchangeRateInfo(EMTQueryHKConnectIndicativeExchangeRateInfoRsp *hk_connect_exchage_rate_info, EMTRI *error_info, int request_id, uint64_t session_id){};
+
+            ///查询港股通最小价差信息响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
+            ///@param hk_connect_spread_table 港股通最小价差信息
+            ///@param error_info 查询昨日资产发生错误时返回的错误信息，当error_info为空，或者error_info.error_id为0时，表明没有错误
+            ///@param request_id 此消息响应函数对应的请求ID
+            ///@param is_last 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@remark 需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
+            virtual void OnQueryHkConnectSpreadTable(EMTQueryHkConnectSpreadTableRsp *hk_connect_spread_table, EMTRI *error_info, int request_id, bool is_last, uint64_t session_id){};
+
+            ///持仓变动通知
+            ///@param holding_change_info 持仓发生变动的具体信息
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@remark 当由于两融担保品划转、期权锁定解锁、大宗交易、系统冲正等导致持仓发生变动时，都会被调用，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
+            virtual void OnHoldingChangeEvent(EMTHoldingChangeInfo *holding_change_info, uint64_t session_id) {};
+
+            ///查询账户融券负债当日应还信息响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线
+            ///@param to_repay_info 融券负债当日应还信息，查询发生错误时返回空
+            ///@param req_count 请求到的最大数量
+            ///@param query_sequence 分页请求的当前回报数量
+            ///@param query_reference 当前信息所对应的查询索引，需要记录下来，在进行下一次分页查询的时候需要用到
+            ///@param request_id 此消息响应函数对应的请求ID
+            ///@param is_last 此消息响应函数是否为request_id这条请求所对应的最后一个响应，当为最后一个的时候为true，如果为false，表示还有其他后续消息响应
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@remark 当query_sequence为0，表明当次查询没有查到任何记录，当is_last为true时，如果query_sequence等于req_count，那么表示还有回报，可以进行下一次分页查询，如果不等，表示所有回报已经查询完毕。一个查询请求可能对应多个响应，需要快速返回，否则会堵塞后续消息，当堵塞严重时，会触发断线。
+            virtual void OnQueryCreditDebtToRepayTodayByPage(EMTClientQueryCreditDebtToRepayTodayByPageRsp *to_repay_info, int64_t req_count, int64_t query_sequence, int64_t query_reference, int request_id, bool is_last, uint64_t session_id) {};
         };
     }
 }
@@ -545,8 +611,8 @@ namespace EMT {
             static TraderApi *CreateTraderApi(uint8_t client_id, const char *save_file_path, EMT_LOG_LEVEL log_level = EMT_LOG_LEVEL_DEBUG);
 
             ///为emtsapi线程分配cpu-core,以提高api线程执行效率
-            ///@param thread1_cpu_core_id 需要绑的CPU编号1,
-            ///@param thread2_cpu_core_id 需要绑的CPU编号2(备用)
+            ///@param thread1_cpu_core_id 需要绑定的CPU编号1
+            ///@param thread2_cpu_core_id 需要绑定的CPU编号2
             ///@remark 1、非高配机器，不可调用此函数，以防止线程长期满负载独占cpu引起系统问题 2、请在登录之前设定
             virtual void SetCpuAffinity(int32_t thread1_cpu_core_id = -1, int32_t thread2_cpu_core_id = -1) = 0;
 
@@ -603,11 +669,6 @@ namespace EMT {
             ///@remark 此函数必须在Login之前调用，标识的是客户端版本号，而不是API的版本号，由用户自定义
             virtual void SetSoftwareVersion(const char* version) = 0;
 
-            ///设置软件开发Key
-            ///@param key 用户开发软件Key，用户申请开户时给予，以'\0'结尾
-            ///@remark 此函数必须在Login之前调用
-            virtual void SetSoftwareKey(const char* key) = 0;
-
             ///设置心跳检测时间间隔，单位为秒
             ///@param interval 心跳检测时间间隔，单位为秒
             ///@remark 此函数必须在Login之前调用
@@ -637,14 +698,14 @@ namespace EMT {
             virtual bool IsServerRestart(uint64_t session_id) = 0;
 
             ///报单录入请求
-            ///@return 报单在EMT系统中的ID,如果为‘0’表示报单发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示报单发送成功，用户需要记录下返回的order_emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@return 报单在EMT系统中的ID,如果为“0”表示报单发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示报单发送成功，用户需要记录下返回的order_emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
             ///@param order 报单录入信息，其中order.order_client_id字段是用户自定义字段，用户输入什么值，订单响应OnOrderEvent()返回时就会带回什么值，类似于备注，方便用户自己定位订单。当然，如果你什么都不填，也是可以的。order.order_emt_id字段无需用户填写，order.ticker必须不带空格，以'\0'结尾
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@remark 交易所接收订单后，会在报单响应函数OnOrderEvent()中返回报单未成交的状态，之后所有的订单状态改变（除了部成状态）都会通过报单响应函数返回
             virtual uint64_t InsertOrder(EMTOrderInsertInfo *order, uint64_t session_id) = 0;
 
             ///报单操作请求
-            ///@return 撤单在EMT系统中的ID,如果为‘0’表示撤单发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示撤单发送成功，用户需要记录下返回的order_cancel_emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@return 撤单在EMT系统中的ID,如果为“0”表示撤单发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示撤单发送成功，用户需要记录下返回的order_cancel_emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
             ///@param order_emt_id 需要撤销的委托单在EMT系统中的ID
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@remark 如果撤单成功，会在报单响应函数OnOrderEvent()里返回原单部撤或者全撤的消息，如果不成功，会在OnCancelOrderError()响应函数中返回错误原因
@@ -662,7 +723,7 @@ namespace EMT {
             ///@param query_param 需要查询的订单相关筛选条件，其中合约代码可以为空，则默认所有存在的合约代码，如果不为空，请不带空格，并以'\0'结尾，其中起始时间格式为YYYYMMDDHHMMSSsss，为0则默认当前交易日0点，结束时间格式为YYYYMMDDHHMMSSsss，为0则默认当前时间
             ///@param session_id 资金账户对应的session_id，登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法支持分时段查询，如果股票代码为空，则默认查询时间段内的所有报单，否则查询时间段内所有跟股票代码相关的报单，此函数查询出的结果可能对应多个查询结果响应。此函数不建议轮询使用，当报单量过多时，容易造成用户线路拥堵，导致api断线。查询记录数不能超过1000，否则会报错，甚至崩溃。
+            ///@remark 该方法支持分时段查询，如果股票代码为空，则默认查询时间段内的所有报单，否则查询时间段内所有跟股票代码相关的报单，此函数查询出的结果可能对应多个查询结果响应。此函数不建议轮询使用，当报单量过多时，容易造成用户线路拥堵，导致api断线。查询记录数不能超过1000，否则会报错，甚至崩溃，推荐使用对应分页查询接口QueryOrdersByPage。
             virtual int QueryOrders(const EMTQueryOrderReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///请求查询未完结报单
@@ -676,7 +737,7 @@ namespace EMT {
             ///@param query_param 需要分页查询订单的条件，如果第一次查询，那么query_param.reference填0
             ///@param session_id 资金账户对应的session_id，登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用
+            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用。每此请求订单条数req_count不超过200，超过时按200处理。
             virtual int QueryOrdersByPage(const EMTQueryOrderByPageReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///根据委托编号请求查询相关成交
@@ -692,7 +753,7 @@ namespace EMT {
             ///@param query_param 需要查询的成交回报筛选条件，其中合约代码可以为空，则默认所有存在的合约代码，如果不为空，请不带空格，并以'\0'结尾，其中起始时间格式为YYYYMMDDHHMMSSsss，为0则默认当前交易日0点，结束时间格式为YYYYMMDDHHMMSSsss，为0则默认当前时间
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法支持分时段查询，如果股票代码为空，则默认查询时间段内的所有成交回报，否则查询时间段内所有跟股票代码相关的成交回报，此函数查询出的结果可能对应多个查询结果响应。此函数不建议轮询使用，当报单量过多时，容易造成用户线路拥堵，导致api断线。查询记录数不能超过1000，否则会报错，甚至崩溃。
+            ///@remark 该方法支持分时段查询，如果股票代码为空，则默认查询时间段内的所有成交回报，否则查询时间段内所有跟股票代码相关的成交回报，此函数查询出的结果可能对应多个查询结果响应。此函数不建议轮询使用，当报单量过多时，容易造成用户线路拥堵，导致api断线。查询记录数不能超过1000，否则会报错，甚至崩溃，推荐使用对应分页查询接口QueryTradesByPage。
             virtual int QueryTrades(EMTQueryTraderReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///分页请求查询成交回报
@@ -700,7 +761,7 @@ namespace EMT {
             ///@param query_param 需要分页查询成交回报的条件，如果第一次查询，那么reference填0
             ///@param session_id 资金账户对应的session_id，登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用
+            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用。每此请求订单条数req_count不超过200，超过时按200处理。
             virtual int QueryTradesByPage(const EMTQueryTraderByPageReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///请求查询投资者持仓
@@ -709,7 +770,7 @@ namespace EMT {
             ///@param market 需要查询持仓的合约所在市场，默认为0，仅在合约代码不为NULL的时候，才会使用。market不指定或者为非0的其他非有效值情况下，可能由于证券代码沪深2个市场有重复，而导致查询不到所需的持仓。如果想正确查询指定持仓，请指定market
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法如果用户提供了合约代码，则会查询此合约的持仓信息（注意请指定market，如果market为0，可能会查询到2个市场的持仓，如果market为其他非有效值，则查询结果会返回找不到持仓），如果合约代码为空，则默认查询所有持仓信息。
+            ///@remark 该方法如果用户提供了合约代码，则会查询此合约的持仓信息（注意请指定market，如果market为0，可能会查询到2个市场的持仓，如果market为其他非有效值，则查询结果会返回找不到持仓），如果合约代码为空，则默认查询所有持仓信息。查询记录数不能超过1000，否则会报错，甚至崩溃，推荐使用对应分页查询接口QueryPositionByPage。
             virtual int QueryPosition(const char *ticker, uint64_t session_id, int request_id, EMT_MARKET_TYPE market = EMT_MKT_INIT) = 0;
 
             ///请求查询投资者持仓分页
@@ -717,7 +778,7 @@ namespace EMT {
             ///@param query_param 需要分页查询持仓的条件，如果第一次查询，那么query_param.reference填0
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法如果用户提供了合约代码，则会查询此合约的持仓信息（注意请指定market，如果market为0，可能会查询到2个市场的持仓，如果market为其他非有效值，则查询结果会返回找不到持仓），如果合约代码为空，则默认查询所有持仓信息。
+            ///@remark 该方法如果用户提供了合约代码，则会查询此合约的持仓信息（注意请指定market，如果market为0，可能会查询到2个市场的持仓，如果market为其他非有效值，则查询结果会返回找不到持仓），如果合约代码为空，则默认查询所有持仓信息。每此请求订单条数req_count不超过200，超过时按200处理。
             virtual int QueryPositionByPage(const EMTQueryPositionByPageReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///请求查询资产
@@ -727,7 +788,7 @@ namespace EMT {
             virtual int QueryAsset(uint64_t session_id, int request_id) = 0;
 
             ///资金划拨请求
-            ///@return 资金划拨订单在EMT系统中的ID,如果为‘0’表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的serial_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@return 资金划拨订单在EMT系统中的ID,如果为“0”表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的serial_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
             ///@param fund_transfer 资金划拨的请求信息
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@remark 此函数支持一号两中心节点之间的资金划拨，注意资金划拨的方向。
@@ -742,7 +803,7 @@ namespace EMT {
 
             ///请求查询其他节点可用资金
             ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
-            ///@param query_param 询时需要提供的信息
+            ///@param query_param 查询时需要提供的信息
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
             virtual int QueryOtherServerFund(EMTFundQueryReq *query_param, uint64_t session_id, int request_id) = 0;
@@ -781,20 +842,19 @@ namespace EMT {
             virtual int QueryOptionAuctionInfo(EMTQueryOptionAuctionInfoReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///融资融券业务中现金直接还款请求
-            ///@return 现金直接还款订单在EMT系统中的ID,如果为‘0’表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@return 现金直接还款订单在EMT系统中的ID,如果为“0”表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
             ///@param amount 现金还款的金额
             ///@param session_id 资金账户对应的session_id,登录时得到
             virtual uint64_t CreditCashRepay(double amount, uint64_t session_id) = 0;
 
-            ///融资融券业务中现金还指定负债合约息费请求
-            ///@return 现金还息订单在EMT系统中的ID,如果为‘0’表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
-            ///@param debt_id 指定的负债合约编号
-            ///@param amount 现金还息的金额
+            ///融资融券业务中现金偿还指定负债请求
+            ///@return 现金偿还指定合约订单在EMT系统中的ID,如果为“0”表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@param cash_repay_req 指定偿还的负债合约请求信息
             ///@param session_id 资金账户对应的session_id,登录时得到
-            virtual uint64_t CreditCashRepayDebtInterestFee(const char* debt_id, double amount, uint64_t session_id) = 0;
+            virtual uint64_t CreditCashRepaySpecifiedDebt(EMTCrdRepaySpecifiedDebtReq* cash_repay_req, uint64_t session_id) = 0;
 
             ///融资融券业务中卖券还指定负债合约息费请求
-            ///@return 卖券还息订单在EMT系统中的ID,如果为‘0’表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@return 卖券还息订单在EMT系统中的ID,如果为“0”表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
             ///@param order 卖券的报单录入信息，其中order.order_client_id字段是用户自定义字段，用户输入什么值，订单响应OnOrderEvent()返回时就会带回什么值，类似于备注，方便用户自己定位订单。当然，如果你什么都不填，也是可以的。order.order_emt_id字段无需用户填写，order.ticker必须不带空格，以'\0'结尾
             ///@param debt_id 指定的负债合约编号
             ///@param session_id 资金账户对应的session_id,登录时得到
@@ -816,6 +876,7 @@ namespace EMT {
             ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
+            ///@remark 查询记录数不能超过1000，推荐使用对应分页查询接口QueryCreditDebtInfoByPage。
             virtual int QueryCreditDebtInfo(uint64_t session_id, int request_id) = 0;
 
             ///分页请求信用账户负债合约信息
@@ -823,7 +884,7 @@ namespace EMT {
             ///@param query_param 需要分页查询成交回报的条件，如果第一次查询，那么reference填0
             ///@param session_id 资金账户对应的session_id，登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用
+            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用。每此请求订单条数req_count不超过200，超过时按200处理。
             virtual int QueryCreditDebtInfoByPage(const EMTQueryCreditDebtInfoByPageReq* query_param, uint64_t session_id, int request_id)=0;
 
             ///请求查询指定证券负债未还信息
@@ -843,7 +904,7 @@ namespace EMT {
             ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
             ///@param query_param 需要查询的证券，筛选条件中ticker可以全填0，如果不为0，请不带空格，并以'\0'结尾
             ///@param session_id 资金账户对应的session_id,登录时得到
-            ///@param request_id 用于用户定位查询响应的ID，由用户自定义
+            ///@param request_id 用于用户定位查询响应的ID，由用户自定义。查询记录数不能超过1000，推荐使用对应分页查询接口QueryCreditTickerAssignInfoByPage。
             virtual int QueryCreditTickerAssignInfo(EMTClientQueryCrdPositionStockReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///分页请求信用账户证券头寸信息
@@ -851,7 +912,7 @@ namespace EMT {
             ///@param query_param 需要分页查询成交回报的条件，如果第一次查询，那么reference填0
             ///@param session_id 资金账户对应的session_id，登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用
+            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用。每此请求订单条数req_count不超过200，超过时按200处理。
             virtual int QueryCreditTickerAssignInfoByPage(const EMTQueryTickerAssignInfoByPageReq* query_param, uint64_t session_id, int request_id)=0;
 
             ///融资融券业务中请求查询指定证券的余券
@@ -870,7 +931,7 @@ namespace EMT {
             virtual int QueryMulCreditExcessStock(EMTClientQueryCrdSurplusStkReqInfo *query_param, uint64_t session_id, int request_id) = 0;   
 
             ///融资融券业务中请求负债合约展期
-            ///@return 负债合约展期订单在EMT系统中的ID,如果为‘0’表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@return 负债合约展期订单在EMT系统中的ID,如果为“0”表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
             ///@param debt_extend 负债合约展期的请求信息
             ///@param session_id 资金账户对应的session_id,登录时得到
             virtual uint64_t CreditExtendDebtDate(EMTCreditDebtExtendReq *debt_extend, uint64_t session_id) = 0;
@@ -895,19 +956,19 @@ namespace EMT {
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
             virtual int QueryCreditPositionExtraInfo(EMTClientQueryCrdPositionStockReq *query_param, uint64_t session_id, int request_id) = 0;
 
+            ///期权行权/组合行权申报
+            ///@return 报单在EMT系统中的ID,如果为“0”表示报单发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示报单发送成功，用户需要记录下返回的order_emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@param exec_order 行权申报录入信息
+            ///@param session_id 资金账户对应的session_id,登录时得到
+            ///@remark 交易所接收订单后，会在报单响应函数OnOrderEvent()中返回报单未成交的状态，之后所有的订单状态改变（除了部成状态）都会通过报单响应函数返回
+            virtual uint64_t InsertOptionExerciseOrder(EMTOptionExerciseOrderInsertInfo *exec_order, uint64_t session_id) = 0;
+
             ///期权组合策略报单录入请求
-            ///@return 报单在EMT系统中的ID,如果为‘0’表示报单发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示报单发送成功，用户需要记录下返回的order_emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@return 报单在EMT系统中的ID,如果为“0”表示报单发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示报单发送成功，用户需要记录下返回的order_emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
             ///@param order 报单录入信息，其中order.order_client_id字段是用户自定义字段，用户输入什么值，订单响应OnOptionCombinedOrderEvent()返回时就会带回什么值，类似于备注，方便用户自己定位订单。当然，如果你什么都不填，也是可以的。order.order_emt_id字段无需用户填写，order.ticker必须不带空格，以'\0'结尾
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@remark 交易所接收订单后，会在报单响应函数OnOptionCombinedOrderEvent()中返回报单未成交的状态，之后所有的订单状态改变（除了部成状态）都会通过报单响应函数返回
             virtual uint64_t InsertOptionCombinedOrder(EMTOptCombOrderInsertInfo *order, uint64_t session_id) = 0;
-
-            ///期权组合策略报单撤单请求
-            ///@return 撤单在EMT系统中的ID,如果为‘0’表示撤单发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示撤单发送成功，用户需要记录下返回的order_cancel_emt_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
-            ///@param order_emt_id 需要撤销的期权组合策略委托单在EMT系统中的ID
-            ///@param session_id 资金账户对应的session_id,登录时得到
-            ///@remark 如果撤单成功，会在报单响应函数OnOptionCombinedOrderEvent()里返回原单部撤或者全撤的消息，如果不成功，会在OnCancelOrderError()响应函数中返回错误原因
-            virtual uint64_t CancelOptionCombinedOrder(const uint64_t order_emt_id, uint64_t session_id) = 0;
 
             ///请求查询期权组合策略未完结报单
             ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
@@ -935,7 +996,7 @@ namespace EMT {
             ///@param query_param 需要分页查询订单的条件，如果第一次查询，那么query_param.reference填0
             ///@param session_id 资金账户对应的session_id，登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用
+            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用。每此请求订单条数req_count不超过200，超过时按200处理。
             virtual int QueryOptionCombinedOrdersByPage(const EMTQueryOptCombOrderByPageReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///根据期权组合策略委托编号请求查询相关成交
@@ -959,7 +1020,7 @@ namespace EMT {
             ///@param query_param 需要分页查询成交回报的条件，如果第一次查询，那么reference填0
             ///@param session_id 资金账户对应的session_id，登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用
+            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用。每此请求订单条数req_count不超过200，超过时按200处理。
             virtual int QueryOptionCombinedTradesByPage(const EMTQueryOptCombTraderByPageReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///请求查询投资者期权组合策略持仓
@@ -1005,17 +1066,17 @@ namespace EMT {
 
             ///融资融券可担保证券分页查询
             ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
-            ///@param query_param 分页查询请求条件，页码从1开始，单页请求数量不可超过200条
+            ///@param query_param 需要分页查询的条数，如果第一次查询，那么query_param.reference填0
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            virtual int QueryCreditPledgeStkPagination(EMTClientQueryCreditPledgeStkPaginationReq *query_param, uint64_t session_id, int request_id) = 0;
+            virtual int QueryCreditPledgeStkByPage(EMTClientQueryCreditPledgeStkByPageReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///融资融券标的证券分页查询
             ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
-            ///@param query_param 分页查询请求条件，页码从1开始，单页请求数量不可超过200条
+            ///@param query_param 需要分页查询的条数，如果第一次查询，那么query_param.reference填0
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
-            virtual int QueryCreditTargetStkPagination(EMTClientQueryCreditTargetStkPaginationReq *query_param, uint64_t session_id, int request_id) = 0;
+            virtual int QueryCreditTargetStkByPage(EMTClientQueryCreditTargetStkByPageReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///请求查询配股业务信息列表
             ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
@@ -1031,7 +1092,7 @@ namespace EMT {
             virtual int QuerySecurityInfo(EMTQuerySecurityInfoReq *query_param, uint64_t session_id, int request_id) = 0;
 
             ///融资融券两地分仓信用额度调拨请求
-            ///@return 信用额度调拨订单在EMT系统中的ID,如果为‘0’表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的serial_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
+            ///@return 信用额度调拨订单在EMT系统中的ID,如果为“0”表示消息发送失败，此时用户可以调用GetApiLastError()来获取错误代码，非“0”表示消息发送成功，用户需要记录下返回的serial_id，它保证一个交易日内唯一，不同的交易日不保证唯一性
             ///@param quota_transfer 信用额度划拨的请求信息
             ///@param session_id 资金账户对应的session_id,登录时得到
             ///@remark 此函数支持一号两中心节点之间的资金划拨，注意资金划拨的方向。
@@ -1050,6 +1111,41 @@ namespace EMT {
             ///@param request_id 用于用户定位查询响应的ID，由用户自定义
             virtual int QueryYesterdayAsset(uint64_t session_id, int request_id) = 0;
 
+            ///分页请求查询ETF清单文件
+            ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
+            ///@param query_param 需要分页查询ETF清单文件的条件，如果第一次查询，那么query_param.reference填0
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@param request_id 用于用户定位查询响应的ID，由用户自定义
+            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用。每此请求订单条数req_count不超过200，超过时按200处理。
+            virtual int QueryETFByPage(const EMTQueryETFByPageReq *query_param, uint64_t session_id, int request_id) = 0;
+
+            ///分页请求查询标的基础信息
+            ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
+            ///@param query_param 需要分页查询标的基础信息的条件，如果第一次查询，那么query_param.reference填0
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@param request_id 用于用户定位查询响应的ID，由用户自定义
+            ///@remark 该方法支持分页查询，注意用户需要记录下最后一笔查询结果的reference以便用户下次查询使用。每此请求订单条数req_count不超过200，超过时按200处理。
+            virtual int QuerySecurityByPage(const EMTQuerySecurityByPageReq *query_param, uint64_t session_id, int request_id) = 0;
+
+            ///查询港股通参考汇率信息
+            ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@param request_id 用于用户定位查询响应的ID，由用户自定义
+            virtual int QueryHKConnectIndicativeExchangeRateInfo(uint64_t session_id, int request_id) = 0;
+
+            ///查询港股通最小价差信息
+            ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
+            ///@param query_param 需要查询港股通最小价差信息的条件, ticker_type为查询最小价差表的证券类型, 如果不填则默认返回所有类型的最小价差表
+            ///@param session_id 资金账户对应的session_id，登录时得到
+            ///@param request_id 用于用户定位查询响应的ID，由用户自定义
+            virtual int QueryHkConnectSpreadTable(const EMTQueryHkConnectSpreadTableReq* query_param, uint64_t session_id, int request_id) = 0;
+
+            ///查询融资融券业务中账户融券负债当日应还情况
+            ///@return 查询是否成功，“0”表示成功，非“0”表示出错，此时用户可以调用GetApiLastError()来获取错误代码
+            ///@param query_param 需要分页查询融券负债当日应还的条件，如需指定证券代码查询，ticker请不带空格，并以'\0'结尾，注意需与market匹配。如不指定证券代码，ticker可以全填0。
+            ///@param session_id 资金账户对应的session_id,登录时得到
+            ///@param request_id 用于用户定位查询响应的ID，由用户自定义
+            virtual int QueryCreditDebtToRepayTodayByPage(EMTClientQueryCreditDebtToRepayTodayByPageReq *query_param, uint64_t session_id, int request_id) = 0;
         protected:
             ~TraderApi() {};
         };
